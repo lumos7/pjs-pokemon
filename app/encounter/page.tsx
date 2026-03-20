@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { scenes } from '@/lib/scenes'
-import { Pokemon } from '@/lib/pokemon'
+import { Pokemon, getCryUrl } from '@/lib/pokemon'
 import { SceneSelector } from '@/components/SceneSelector'
 import { PokemonSelector } from '@/components/PokemonSelector'
 import { SurpriseButton } from '@/components/SurpriseButton'
@@ -16,23 +17,24 @@ const REGIONS: { value: Region; label: string }[] = [
   { value: 'johto', label: 'Johto' },
 ]
 
-async function playTTS(pokemonName: string, nameOnly = false) {
+function playCry(pokemonId: number) {
+  const cry = new Audio(getCryUrl(pokemonId))
+  cry.play().catch(() => {})
+}
+
+async function playTTS(pokemonName: string, pokemonId: number | null = null, nameOnly = false) {
   try {
-    console.log('[tts-client] firing for:', pokemonName, '| nameOnly:', nameOnly)
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pokemonName, nameOnly }),
     })
-    console.log('[tts-client] response status:', res.status)
     if (res.ok) {
       const blob = await res.blob()
-      console.log('[tts-client] blob size:', blob.size)
       const audio = new Audio(URL.createObjectURL(blob))
-      audio.play().catch((e) => console.error('[tts-client] play error:', e))
-    } else {
-      const err = await res.text()
-      console.error('[tts-client] API error:', res.status, err)
+      // Chain cry after TTS ends
+      if (pokemonId) audio.addEventListener('ended', () => playCry(pokemonId), { once: true })
+      audio.play().catch(() => {})
     }
   } catch (e) {
     console.error('[tts-client] fetch error:', e)
@@ -40,6 +42,7 @@ async function playTTS(pokemonName: string, nameOnly = false) {
 }
 
 export default function EncounterPage() {
+  const searchParams = useSearchParams()
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([])
   const [region, setRegion] = useState<Region>('both')
   const [selectedScene, setSelectedScene] = useState<string | null>(null)
@@ -70,10 +73,24 @@ export default function EncounterPage() {
       })
   }, [])
 
+  // Pre-select pokemon from URL params (coming from /pokemon-list)
+  useEffect(() => {
+    const idParam = searchParams.get('pokemonId')
+    const nameParam = searchParams.get('pokemonName')
+    if (!idParam || !nameParam || pokemonList.length === 0) return
+    const id = parseInt(idParam, 10)
+    const found = pokemonList.find(p => p.id === id) ?? { id, name: nameParam }
+    const randomScene = scenes[Math.floor(Math.random() * scenes.length)]
+    setSelectedScene(randomScene.id)
+    setSelectedPokemon(found)
+    generate(randomScene.id, found)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pokemonList])
+
   // Auto-fire TTS when composite image is ready
   useEffect(() => {
     if (!compositeImageUrl || !selectedPokemon) return
-    playTTS(selectedPokemon.name)
+    playTTS(selectedPokemon.name, selectedPokemon.id)
   }, [compositeImageUrl, selectedPokemon])
 
   const handleSelectPokemon = (p: Pokemon) => {
@@ -193,7 +210,7 @@ export default function EncounterPage() {
         imageUrl={compositeImageUrl}
         pokemonName={selectedPokemon?.name ?? null}
         isLoading={isGenerating}
-        onSpeakName={selectedPokemon ? () => playTTS(selectedPokemon.name, true) : undefined}
+        onSpeakName={selectedPokemon ? () => playTTS(selectedPokemon.name, selectedPokemon.id, true) : undefined}
         onClose={() => setCompositeImageUrl(null)}
       />
     </main>

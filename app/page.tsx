@@ -64,12 +64,20 @@ export default function Home() {
         ))}
       </div>
 
-      <Link
-        href="/encounter"
-        className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-12 py-6 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center"
-      >
-        Let&apos;s Play!
-      </Link>
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <Link
+          href="/encounter"
+          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-12 py-6 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center"
+        >
+          Let&apos;s Play!
+        </Link>
+        <Link
+          href="/pokemon-list"
+          className="bg-[#FFCB05] text-gray-900 text-xl font-bold rounded-full px-8 py-5 shadow-lg hover:scale-105 transition-transform min-h-[64px] inline-flex items-center"
+        >
+          Pokédex 📖
+        </Link>
+      </div>
     </main>
   )
 }
