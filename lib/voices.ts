@@ -1,7 +1,7 @@
 export const VOICE_IDS = [
-  'Gsndh0O5AnuI2Hj3YUlA',
-  'O4fnkotIypvedJqBp4yb',
-  'iukn3a1vSSNFmdi5NZS4',
+  '21m00Tcm4TlvDq8ikWAM', // Rachel
+  'AZnzlk1XvdvUeBnXmlld', // Domi
+  'EXAVITQu4vr4xnSDxMaL', // Bella
 ] as const
 
 export type VoiceId = typeof VOICE_IDS[number]
