@@ -4,9 +4,10 @@ interface EncounterCanvasProps {
   imageUrl: string | null
   pokemonName: string | null
   isLoading: boolean
+  onSpeakName?: () => void
 }
 
-export function EncounterCanvas({ imageUrl, pokemonName, isLoading }: EncounterCanvasProps) {
+export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName }: EncounterCanvasProps) {
   const handleDownload = () => {
     if (!imageUrl || !pokemonName) return
     const a = document.createElement('a')
@@ -14,6 +15,8 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading }: EncounterC
     a.download = `aziah-meets-${pokemonName.toLowerCase()}.png`
     a.click()
   }
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
   if (isLoading) {
     return (
@@ -32,12 +35,24 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading }: EncounterC
           alt={`Aziah meets ${pokemonName}`}
           className="rounded-2xl shadow-2xl max-w-full"
         />
-        <button
-          onClick={handleDownload}
-          className="bg-[#3B4CCA] text-white font-bold text-lg rounded-full px-8 py-4 min-h-[56px] mt-4 hover:bg-blue-700 transition-colors shadow-lg"
-        >
-          Download Image
-        </button>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {onSpeakName && pokemonName && (
+            <button
+              type="button"
+              onClick={onSpeakName}
+              className="bg-[#FFCB05] text-gray-900 font-bold text-lg rounded-full px-6 py-4 min-h-[56px] hover:bg-yellow-400 transition-colors shadow-lg"
+            >
+              🔊 {capitalize(pokemonName)}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="bg-[#3B4CCA] text-white font-bold text-lg rounded-full px-8 py-4 min-h-[56px] hover:bg-blue-700 transition-colors shadow-lg"
+          >
+            Download Image
+          </button>
+        </div>
       </div>
     )
   }

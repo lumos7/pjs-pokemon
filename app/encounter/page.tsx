@@ -8,17 +8,49 @@ import { PokemonSelector } from '@/components/PokemonSelector'
 import { SurpriseButton } from '@/components/SurpriseButton'
 import { EncounterCanvas } from '@/components/EncounterCanvas'
 
+type Region = 'kanto' | 'johto' | 'both'
+
+const REGIONS: { value: Region; label: string }[] = [
+  { value: 'both',  label: 'Both'  },
+  { value: 'kanto', label: 'Kanto' },
+  { value: 'johto', label: 'Johto' },
+]
+
+async function playTTS(pokemonName: string, nameOnly = false) {
+  try {
+    console.log('[tts-client] firing for:', pokemonName, '| nameOnly:', nameOnly)
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pokemonName, nameOnly }),
+    })
+    console.log('[tts-client] response status:', res.status)
+    if (res.ok) {
+      const blob = await res.blob()
+      console.log('[tts-client] blob size:', blob.size)
+      const audio = new Audio(URL.createObjectURL(blob))
+      audio.play().catch((e) => console.error('[tts-client] play error:', e))
+    } else {
+      const err = await res.text()
+      console.error('[tts-client] API error:', res.status, err)
+    }
+  } catch (e) {
+    console.error('[tts-client] fetch error:', e)
+  }
+}
+
 export default function EncounterPage() {
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([])
+  const [region, setRegion] = useState<Region>('both')
   const [selectedScene, setSelectedScene] = useState<string | null>(null)
   const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null)
   const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [loadingPokemon, setLoadingPokemon] = useState(true)
 
-  // Fetch pokemon list on mount
+  // Fetch all 251 Kanto + Johto Pokemon on mount
   useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=250&offset=0')
+    fetch('https://pokeapi.co/api/v2/pokemon?limit=251&offset=0')
       .then((r) => {
         if (!r.ok) throw new Error(`PokeAPI error: ${r.status}`)
         return r.json()
@@ -41,30 +73,14 @@ export default function EncounterPage() {
   // Auto-fire TTS when composite image is ready
   useEffect(() => {
     if (!compositeImageUrl || !selectedPokemon) return
-    const fireTTS = async () => {
-      try {
-        console.log('[tts-client] firing for:', selectedPokemon.name)
-        const res = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pokemonName: selectedPokemon.name }),
-        })
-        console.log('[tts-client] response status:', res.status)
-        if (res.ok) {
-          const blob = await res.blob()
-          console.log('[tts-client] blob size:', blob.size)
-          const audio = new Audio(URL.createObjectURL(blob))
-          audio.play().catch((e) => console.error('[tts-client] play error:', e))
-        } else {
-          const err = await res.text()
-          console.error('[tts-client] API error:', res.status, err)
-        }
-      } catch (e) {
-        console.error('[tts-client] fetch error:', e)
-      }
-    }
-    fireTTS()
+    playTTS(selectedPokemon.name)
   }, [compositeImageUrl, selectedPokemon])
+
+  const filteredPokemon = pokemonList.filter((p) => {
+    if (region === 'kanto') return p.id <= 151
+    if (region === 'johto') return p.id >= 152 && p.id <= 251
+    return true
+  })
 
   const generate = async (sceneId: string, pokemon: Pokemon) => {
     setIsGenerating(true)
@@ -81,8 +97,7 @@ export default function EncounterPage() {
       })
       if (!res.ok) throw new Error('Composite failed')
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      setCompositeImageUrl(url)
+      setCompositeImageUrl(URL.createObjectURL(blob))
     } catch (e) {
       console.error('Generate error:', e)
       alert('Something went wrong! Try again.')
@@ -97,9 +112,9 @@ export default function EncounterPage() {
   }
 
   const handleSurprise = () => {
-    if (pokemonList.length === 0) return
+    if (filteredPokemon.length === 0) return
     const randomScene = scenes[Math.floor(Math.random() * scenes.length)]
-    const randomPokemon = pokemonList[Math.floor(Math.random() * pokemonList.length)]
+    const randomPokemon = filteredPokemon[Math.floor(Math.random() * filteredPokemon.length)]
     setSelectedScene(randomScene.id)
     setSelectedPokemon(randomPokemon)
     generate(randomScene.id, randomPokemon)
@@ -118,12 +133,31 @@ export default function EncounterPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-bold text-gray-800 mb-2">Choose a Pokemon</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-gray-800">Choose a Pokemon</h2>
+          {/* Region filter */}
+          <div className="flex gap-1 bg-amber-50 border border-amber-200 rounded-full p-1">
+            {REGIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setRegion(value)}
+                className={`px-3 py-1 rounded-full text-sm font-bold transition-colors min-h-[36px] ${
+                  region === value
+                    ? 'bg-[#CC0000] text-white shadow'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         {loadingPokemon ? (
           <p className="text-gray-500 text-center py-4">Loading Pokemon...</p>
         ) : (
           <PokemonSelector
-            pokemon={pokemonList}
+            pokemon={filteredPokemon}
             selected={selectedPokemon}
             onSelect={setSelectedPokemon}
           />
@@ -132,6 +166,7 @@ export default function EncounterPage() {
 
       <section className="flex flex-col sm:flex-row gap-3">
         <button
+          type="button"
           onClick={handleGenerate}
           disabled={!selectedScene || !selectedPokemon || isGenerating}
           className="flex-1 bg-[#FFCB05] text-gray-900 font-bold text-xl rounded-full px-8 py-4 min-h-[56px] shadow-lg hover:bg-yellow-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -140,7 +175,7 @@ export default function EncounterPage() {
         </button>
         <SurpriseButton
           onSurprise={handleSurprise}
-          disabled={isGenerating || pokemonList.length === 0}
+          disabled={isGenerating || filteredPokemon.length === 0}
         />
       </section>
 
@@ -149,6 +184,7 @@ export default function EncounterPage() {
           imageUrl={compositeImageUrl}
           pokemonName={selectedPokemon?.name ?? null}
           isLoading={isGenerating}
+          onSpeakName={selectedPokemon ? () => playTTS(selectedPokemon.name, true) : undefined}
         />
       </section>
     </main>

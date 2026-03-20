@@ -1,24 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pickRandomVoice } from '@/lib/voices'
 
+// "Eye-Zy-Ah" is the phonetic spelling ElevenLabs uses to pronounce Aziah correctly
+const SPOKEN_NAME = 'Eye-Zy-Ah'
+
 const PHRASES = [
-  (name: string) => `Look Aziah, this is ${name}!`,
-  (name: string) => `Hey Aziah, meet ${name}!`,
-  (name: string) => `Wow Aziah, it's ${name}!`,
-  (name: string) => `Oh my days Aziah, it's ${name}!`,
-  (name: string) => `Aziah, no way! It's ${name}!`,
-  (name: string) => `Quick Aziah, look! It's ${name}!`,
+  (name: string) => `Look ${SPOKEN_NAME}, this is ${name}!`,
+  (name: string) => `Hey ${SPOKEN_NAME}, meet ${name}!`,
+  (name: string) => `Wow ${SPOKEN_NAME}, it's ${name}!`,
+  (name: string) => `Oh my days ${SPOKEN_NAME}, it's ${name}!`,
+  (name: string) => `${SPOKEN_NAME}, no way! It's ${name}!`,
+  (name: string) => `Quick ${SPOKEN_NAME}, look! It's ${name}!`,
 ]
 
 export async function POST(req: NextRequest) {
   try {
-    const { pokemonName } = await req.json()
+    const { pokemonName, nameOnly } = await req.json()
     if (!pokemonName) {
       return NextResponse.json({ error: 'Missing pokemonName' }, { status: 400 })
     }
 
     const apiKey = process.env.ELEVENLABS_API_KEY
-    console.log('[tts] API key present:', !!apiKey, '| pokemon:', pokemonName)
+    console.log('[tts] API key present:', !!apiKey, '| pokemon:', pokemonName, '| nameOnly:', nameOnly)
     if (!apiKey) {
       console.error('[tts] ELEVENLABS_API_KEY not set in environment')
       return NextResponse.json({ error: 'ELEVENLABS_API_KEY not configured' }, { status: 500 })
@@ -26,8 +29,10 @@ export async function POST(req: NextRequest) {
 
     const voiceId = pickRandomVoice()
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
-    const phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)]
-    const text = phrase(displayName)
+    const text = nameOnly
+      ? displayName
+      : PHRASES[Math.floor(Math.random() * PHRASES.length)](displayName)
+
     console.log('[tts] voice:', voiceId, '| text:', text)
 
     const response = await fetch(
