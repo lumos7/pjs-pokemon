@@ -60,14 +60,16 @@ export async function POST(req: NextRequest) {
 
     try {
       console.log('[composite] rendering text with Sharp/Pango fontfile:', FONT_PATH)
-      const TEXT_W = CANVAS_WIDTH - 40  // 20px padding each side
-      const STROKE = 3                   // outline offset in px
+      // 31000 * 0.75 ≈ 23000 — another 25% smaller
+      const FONT_SIZE = 23000
+      const TEXT_W = CANVAS_WIDTH - 80
+      const STROKE = 3
       const PAD = STROKE
 
-      // Dark stroke text (rendered once, composited at 4 offsets)
+      // Dark stroke text
       const darkBuf = await sharp({
         text: {
-          text: `<span foreground="#111111" size="31000" weight="bold">${captionText}</span>`,
+          text: `<span foreground="#111111" size="${FONT_SIZE}" weight="bold">${captionText}</span>`,
           fontfile: FONT_PATH,
           font: 'Bangers',
           width: TEXT_W,
@@ -80,7 +82,7 @@ export async function POST(req: NextRequest) {
       // White text
       const whiteBuf = await sharp({
         text: {
-          text: `<span foreground="white" size="31000" weight="bold">${captionText}</span>`,
+          text: `<span foreground="white" size="${FONT_SIZE}" weight="bold">${captionText}</span>`,
           fontfile: FONT_PATH,
           font: 'Bangers',
           width: TEXT_W,
@@ -92,33 +94,31 @@ export async function POST(req: NextRequest) {
 
       const darkMeta = await sharp(darkBuf).metadata()
       const tw = darkMeta.width ?? TEXT_W
-      const th = darkMeta.height ?? 60
+      const th = darkMeta.height ?? 50
 
-      // Canvas with room for the stroke offsets on all sides
       const canvasW = tw + PAD * 2
       const canvasH = th + PAD * 2
 
-      // Build outlined text: dark at N/S/E/W offsets, white centered
+      // Build outlined text: dark at N/S/E/W offsets, white centred
       const outlinedBuf = await sharp({
         create: { width: canvasW, height: canvasH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
       })
         .composite([
-          { input: darkBuf, left: PAD,        top: 0    },   // N
-          { input: darkBuf, left: PAD,        top: PAD*2 },  // S
-          { input: darkBuf, left: 0,          top: PAD   },  // W
-          { input: darkBuf, left: PAD*2,      top: PAD   },  // E
-          { input: whiteBuf, left: PAD,       top: PAD   },  // white centre
+          { input: darkBuf, left: PAD,   top: 0     },  // N
+          { input: darkBuf, left: PAD,   top: PAD*2 },  // S
+          { input: darkBuf, left: 0,     top: PAD   },  // W
+          { input: darkBuf, left: PAD*2, top: PAD   },  // E
+          { input: whiteBuf, left: PAD,  top: PAD   },  // white centre
         ])
         .png()
         .toBuffer()
 
-      // Position: bottom of image with 25px comfortable padding
-      const captionTop = CANVAS_HEIGHT - canvasH - 25
-      // Center horizontally (TEXT_W starts at left=20, PAD shifts it back)
-      const captionLeft = 20 - PAD
+      // True horizontal centre on canvas
+      const captionLeft = Math.max(0, Math.floor((CANVAS_WIDTH - canvasW) / 2))
+      const captionTop  = Math.max(0, CANVAS_HEIGHT - canvasH - 25)
 
-      console.log('[composite] outlined text OK — canvas:', canvasW, 'x', canvasH, '| top:', captionTop)
-      layers.push({ input: outlinedBuf, top: Math.max(0, captionTop), left: Math.max(0, captionLeft) })
+      console.log('[composite] outlined text OK — canvas:', canvasW, 'x', canvasH, '| left:', captionLeft, '| top:', captionTop)
+      layers.push({ input: outlinedBuf, top: captionTop, left: captionLeft })
     } catch (e) {
       console.error('[composite] text rendering failed, skipping caption:', (e as Error).message)
     }
