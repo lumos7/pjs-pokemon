@@ -188,14 +188,13 @@ export default function EncounterPage() {
         />
       </section>
 
-      <section>
-        <EncounterCanvas
-          imageUrl={compositeImageUrl}
-          pokemonName={selectedPokemon?.name ?? null}
-          isLoading={isGenerating}
-          onSpeakName={selectedPokemon ? () => playTTS(selectedPokemon.name, true) : undefined}
-        />
-      </section>
+      <EncounterCanvas
+        imageUrl={compositeImageUrl}
+        pokemonName={selectedPokemon?.name ?? null}
+        isLoading={isGenerating}
+        onSpeakName={selectedPokemon ? () => playTTS(selectedPokemon.name, true) : undefined}
+        onClose={() => setCompositeImageUrl(null)}
+      />
     </main>
   )
 }

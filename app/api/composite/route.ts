@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import path from 'path'
+import fs from 'fs'
 import { getOfficialArtworkUrl } from '@/lib/pokemon'
 import { scenes } from '@/lib/scenes'
 
@@ -9,11 +10,19 @@ const CANVAS_HEIGHT = 900
 const POKEMON_SIZE = 380
 const PJ_HEIGHT = 500
 
+// Load font once at module scope (cold start), base64-encode for SVG embedding
+let fontBase64: string | null = null
+function getFontBase64(): string {
+  if (fontBase64) return fontBase64
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Bangers-Regular.ttf')
+  fontBase64 = fs.readFileSync(fontPath).toString('base64')
+  return fontBase64
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { sceneId, pokemonId, pokemonName } = await req.json()
 
-    // Validate inputs
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene) {
       return NextResponse.json({ error: 'Invalid scene' }, { status: 400 })
@@ -52,20 +61,29 @@ export async function POST(req: NextRequest) {
     const pjLeft = 20
     const pjTop = CANVAS_HEIGHT - (pjMeta.height || PJ_HEIGHT)
 
-    // Build SVG caption: "Aziah meets [Name]!" — white text with dark outline
+    // Build SVG caption with embedded Bangers font (base64) — works on Vercel serverless
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
     const captionText = `Aziah meets ${displayName}!`
     const cx = CANVAS_WIDTH / 2
-    const SVG_H = 100
-    // Shadow offset copy first, then stroked white text on top
+    const SVG_H = 110
+    const fontB64 = getFontBase64()
+
     const svgStr = `<svg width="${CANVAS_WIDTH}" height="${SVG_H}" xmlns="http://www.w3.org/2000/svg">
-  <text x="${cx + 3}" y="78" font-family="Arial,sans-serif" font-size="58" font-weight="bold" fill="rgba(0,0,0,0.85)" text-anchor="middle">${captionText}</text>
-  <text x="${cx}" y="75" font-family="Arial,sans-serif" font-size="58" font-weight="bold" fill="white" stroke="#111111" stroke-width="6" paint-order="stroke fill" text-anchor="middle">${captionText}</text>
+  <defs>
+    <style>
+      @font-face {
+        font-family: 'Bangers';
+        src: url('data:font/truetype;base64,${fontB64}') format('truetype');
+      }
+    </style>
+  </defs>
+  <text x="${cx + 3}" y="84" font-family="Bangers,Arial,sans-serif" font-size="72" fill="rgba(0,0,0,0.85)" text-anchor="middle" letter-spacing="2">${captionText}</text>
+  <text x="${cx}" y="80" font-family="Bangers,Arial,sans-serif" font-size="72" fill="white" stroke="#111111" stroke-width="5" paint-order="stroke fill" text-anchor="middle" letter-spacing="2">${captionText}</text>
 </svg>`
-    console.log('[composite] svg caption:', svgStr)
+
     const svgCaption = Buffer.from(svgStr)
 
-    // Composite all layers (SVG last = on top)
+    // Composite all layers — SVG last so it renders on top
     const compositeImage = await baseImage
       .composite([
         { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },

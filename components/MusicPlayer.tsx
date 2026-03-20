@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { pickRandomTrack } from '@/lib/scenes'
 
 const DEFAULT_VOLUME = 0.15
+type ThemeState = 'idle' | 'playing' | 'paused'
 
 export function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -11,7 +12,7 @@ export function MusicPlayer() {
   const [isMuted, setIsMuted] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
   const [volume, setVolume] = useState(DEFAULT_VOLUME)
-  const [isPlayingTheme, setIsPlayingTheme] = useState(false)
+  const [themeState, setThemeState] = useState<ThemeState>('idle')
 
   useEffect(() => {
     const track = pickRandomTrack()
@@ -42,58 +43,62 @@ export function MusicPlayer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const stopTheme = () => {
-    if (themeRef.current) {
-      themeRef.current.pause()
-      themeRef.current.currentTime = 0
-      themeRef.current = null
-    }
-    setIsPlayingTheme(false)
+  const resumeBg = () => {
     if (audioRef.current && hasStarted) {
       audioRef.current.play().catch(() => {})
     }
   }
 
-  const playTheme = () => {
-    if (isPlayingTheme) {
-      stopTheme()
-      return
+  const stopTheme = () => {
+    if (themeRef.current) {
+      themeRef.current.pause()
+      themeRef.current.currentTime = 0
+      themeRef.current.onended = null
+      themeRef.current = null
     }
+    setThemeState('idle')
+    resumeBg()
+  }
 
-    // Pause background music
+  const playTheme = () => {
+    // Pause BG music
     audioRef.current?.pause()
 
     const theme = new Audio('/music/playtheme.mp3')
     theme.volume = volume
     theme.muted = isMuted
+    theme.onended = stopTheme
     themeRef.current = theme
-
-    theme.addEventListener('ended', stopTheme, { once: true })
     theme.play().catch(() => {})
-    setIsPlayingTheme(true)
+    setThemeState('playing')
+  }
+
+  const pauseTheme = () => {
+    themeRef.current?.pause()
+    setThemeState('paused')
+    // BG stays paused while theme is active
+  }
+
+  const resumeTheme = () => {
+    themeRef.current?.play().catch(() => {})
+    setThemeState('playing')
   }
 
   const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted
-    }
-    if (themeRef.current) {
-      themeRef.current.muted = !isMuted
-    }
+    if (audioRef.current) audioRef.current.muted = !isMuted
+    if (themeRef.current) themeRef.current.muted = !isMuted
     setIsMuted(!isMuted)
   }
 
   const nextTrack = () => {
     const track = pickRandomTrack()
-    if (audioRef.current) {
-      audioRef.current.pause()
-    }
+    audioRef.current?.pause()
     const audio = new Audio(`/music/${encodeURIComponent(track)}`)
     audio.loop = true
     audio.volume = volume
     audio.muted = isMuted
     audioRef.current = audio
-    if (hasStarted && !isPlayingTheme) {
+    if (hasStarted && themeState === 'idle') {
       audio.play().catch(() => {})
     }
   }
@@ -101,17 +106,14 @@ export function MusicPlayer() {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value)
     setVolume(v)
-    if (audioRef.current) {
-      audioRef.current.volume = v
-    }
-    if (themeRef.current) {
-      themeRef.current.volume = v
-    }
+    if (audioRef.current) audioRef.current.volume = v
+    if (themeRef.current) themeRef.current.volume = v
   }
+
+  const btnBase = 'bg-white/80 backdrop-blur rounded-full px-3 py-3 min-h-[48px] shadow-lg border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap'
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
-      {/* Volume slider — hidden when muted */}
       {!isMuted && (
         <input
           type="range"
@@ -126,21 +128,23 @@ export function MusicPlayer() {
         />
       )}
 
-      <button
-        type="button"
-        onClick={playTheme}
-        title={isPlayingTheme ? 'Stop theme' : 'Play theme'}
-        className="bg-white/80 backdrop-blur rounded-full px-3 py-3 min-h-[48px] shadow-lg border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap"
-      >
-        {isPlayingTheme ? '⏹ Stop Theme' : '🎵 Play Theme'}
+      {/* Play Theme / Stop Theme button */}
+      <button type="button" onClick={themeState === 'idle' ? playTheme : stopTheme} className={btnBase}>
+        {themeState === 'idle' ? '🎵 Play Theme' : '⏹ Stop'}
       </button>
 
-      <button
-        type="button"
-        onClick={nextTrack}
-        title="Next track"
-        className="bg-white/80 backdrop-blur rounded-full px-3 py-3 min-h-[48px] shadow-lg border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap"
-      >
+      {/* Pause / Resume — only shown while theme is active */}
+      {themeState !== 'idle' && (
+        <button
+          type="button"
+          onClick={themeState === 'playing' ? pauseTheme : resumeTheme}
+          className={btnBase}
+        >
+          {themeState === 'playing' ? '⏸ Pause' : '▶ Resume'}
+        </button>
+      )}
+
+      <button type="button" onClick={nextTrack} title="Next track" className={btnBase}>
         Next ♪
       </button>
 
