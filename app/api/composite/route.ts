@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import path from 'path'
-import fs from 'fs'
 import { getOfficialArtworkUrl } from '@/lib/pokemon'
 import { scenes } from '@/lib/scenes'
 
@@ -9,33 +8,23 @@ const CANVAS_WIDTH = 1200
 const CANVAS_HEIGHT = 900
 const POKEMON_SIZE = 380
 const PJ_HEIGHT = 500
+const CAPTION_H = 100
 
-// Load font once at module scope (cold start), base64-encode for SVG embedding
-let fontBase64: string | null = null
-function getFontBase64(): string {
-  if (fontBase64) return fontBase64
-  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Bangers-Regular.ttf')
-  fontBase64 = fs.readFileSync(fontPath).toString('base64')
-  return fontBase64
-}
+const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'Bangers-Regular.ttf')
 
 export async function POST(req: NextRequest) {
   try {
     const { sceneId, pokemonId, pokemonName } = await req.json()
 
     const scene = scenes.find(s => s.id === sceneId)
-    if (!scene) {
-      return NextResponse.json({ error: 'Invalid scene' }, { status: 400 })
-    }
-    if (!pokemonId || !pokemonName) {
-      return NextResponse.json({ error: 'Missing pokemon data' }, { status: 400 })
-    }
+    if (!scene) return NextResponse.json({ error: 'Invalid scene' }, { status: 400 })
+    if (!pokemonId || !pokemonName) return NextResponse.json({ error: 'Missing pokemon data' }, { status: 400 })
 
     // Load scene background
     const scenePath = path.join(process.cwd(), 'public', 'images', scene.file)
     const baseImage = sharp(scenePath).resize(CANVAS_WIDTH, CANVAS_HEIGHT)
 
-    // Fetch Pokemon sprite from GitHub CDN
+    // Fetch Pokemon sprite
     const artworkUrl = getOfficialArtworkUrl(pokemonId)
     const pokemonRes = await fetch(artworkUrl)
     if (!pokemonRes.ok) throw new Error(`Failed to fetch Pokemon artwork: ${pokemonRes.status}`)
@@ -61,37 +50,52 @@ export async function POST(req: NextRequest) {
     const pjLeft = 20
     const pjTop = CANVAS_HEIGHT - (pjMeta.height || PJ_HEIGHT)
 
-    // Build SVG caption with embedded Bangers font (base64) — works on Vercel serverless
+    // Caption text
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
     const captionText = `Aziah meets ${displayName}!`
-    const cx = CANVAS_WIDTH / 2
-    const SVG_H = 110
-    const fontB64 = getFontBase64()
+    const captionY = CANVAS_HEIGHT - CAPTION_H - 10
 
-    const svgStr = `<svg width="${CANVAS_WIDTH}" height="${SVG_H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      @font-face {
-        font-family: 'Bangers';
-        src: url('data:font/truetype;base64,${fontB64}') format('truetype');
-      }
-    </style>
-  </defs>
-  <text x="${cx + 3}" y="84" font-family="Bangers,Arial,sans-serif" font-size="72" fill="rgba(0,0,0,0.85)" text-anchor="middle" letter-spacing="2">${captionText}</text>
-  <text x="${cx}" y="80" font-family="Bangers,Arial,sans-serif" font-size="72" fill="white" stroke="#111111" stroke-width="5" paint-order="stroke fill" text-anchor="middle" letter-spacing="2">${captionText}</text>
-</svg>`
+    // Semi-transparent dark bar behind text
+    const barBuf = await sharp({
+      create: {
+        width: CANVAS_WIDTH,
+        height: CAPTION_H,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 170 },
+      },
+    }).png().toBuffer()
 
-    const svgCaption = Buffer.from(svgStr)
+    // Sharp native text rendering via Pango — uses bundled font file directly
+    let textBuf: Buffer | null = null
+    try {
+      console.log('[composite] using Sharp text rendering with fontfile:', FONT_PATH)
+      textBuf = await sharp({
+        text: {
+          text: `<span foreground="white" size="52000" weight="bold">${captionText}</span>`,
+          fontfile: FONT_PATH,
+          font: 'Bangers',
+          width: CANVAS_WIDTH - 40,
+          height: CAPTION_H,
+          align: 'centre',
+          rgba: true,
+        },
+      }).png().toBuffer()
+      console.log('[composite] sharp text OK, buffer size:', textBuf.length)
+    } catch (e) {
+      console.error('[composite] sharp text failed, no text overlay:', (e as Error).message)
+    }
 
-    // Composite all layers — SVG last so it renders on top
-    const compositeImage = await baseImage
-      .composite([
-        { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },
-        { input: pjBuffer, top: pjTop, left: pjLeft },
-        { input: svgCaption, top: CANVAS_HEIGHT - SVG_H - 10, left: 0 },
-      ])
-      .png()
-      .toBuffer()
+    // Composite all layers
+    const layers: sharp.OverlayOptions[] = [
+      { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },
+      { input: pjBuffer, top: pjTop, left: pjLeft },
+      { input: barBuf, top: captionY, left: 0 },
+    ]
+    if (textBuf) {
+      layers.push({ input: textBuf, top: captionY + 10, left: 20 })
+    }
+
+    const compositeImage = await baseImage.composite(layers).png().toBuffer()
 
     return new NextResponse(compositeImage as unknown as BodyInit, {
       status: 200,

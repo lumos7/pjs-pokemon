@@ -9,8 +9,11 @@ type ThemeState = 'idle' | 'playing' | 'paused'
 export function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const themeRef = useRef<HTMLAudioElement | null>(null)
+  // Ref so the unlock closure always sees the current value (avoids stale closure bug)
+  const themeActiveRef = useRef(false)
+  const hasStartedRef = useRef(false)
+
   const [isMuted, setIsMuted] = useState(false)
-  const [hasStarted, setHasStarted] = useState(false)
   const [volume, setVolume] = useState(DEFAULT_VOLUME)
   const [themeState, setThemeState] = useState<ThemeState>('idle')
 
@@ -21,10 +24,11 @@ export function MusicPlayer() {
     audio.volume = DEFAULT_VOLUME
     audioRef.current = audio
 
+    // Only start BG music if theme isn't active
     const unlock = () => {
-      if (!hasStarted) {
+      if (!hasStartedRef.current && !themeActiveRef.current) {
         audio.play().then(() => {
-          setHasStarted(true)
+          hasStartedRef.current = true
           document.removeEventListener('click', unlock)
           document.removeEventListener('touchstart', unlock)
         }).catch(() => {})
@@ -40,11 +44,10 @@ export function MusicPlayer() {
       audio.pause()
       themeRef.current?.pause()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const resumeBg = () => {
-    if (audioRef.current && hasStarted) {
+    if (audioRef.current && hasStartedRef.current) {
       audioRef.current.play().catch(() => {})
     }
   }
@@ -56,13 +59,19 @@ export function MusicPlayer() {
       themeRef.current.onended = null
       themeRef.current = null
     }
+    themeActiveRef.current = false
     setThemeState('idle')
     resumeBg()
   }
 
   const playTheme = () => {
-    // Pause BG music
-    audioRef.current?.pause()
+    // Mark theme active BEFORE pausing BG — prevents unlock handler from restarting BG
+    themeActiveRef.current = true
+
+    // Ensure BG is paused
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
 
     const theme = new Audio('/music/playtheme.mp3')
     theme.volume = volume
@@ -76,7 +85,6 @@ export function MusicPlayer() {
   const pauseTheme = () => {
     themeRef.current?.pause()
     setThemeState('paused')
-    // BG stays paused while theme is active
   }
 
   const resumeTheme = () => {
@@ -87,7 +95,7 @@ export function MusicPlayer() {
   const toggleMute = () => {
     if (audioRef.current) audioRef.current.muted = !isMuted
     if (themeRef.current) themeRef.current.muted = !isMuted
-    setIsMuted(!isMuted)
+    setIsMuted(prev => !prev)
   }
 
   const nextTrack = () => {
@@ -98,7 +106,7 @@ export function MusicPlayer() {
     audio.volume = volume
     audio.muted = isMuted
     audioRef.current = audio
-    if (hasStarted && themeState === 'idle') {
+    if (hasStartedRef.current && themeState === 'idle') {
       audio.play().catch(() => {})
     }
   }
@@ -110,52 +118,55 @@ export function MusicPlayer() {
     if (themeRef.current) themeRef.current.volume = v
   }
 
-  const btnBase = 'bg-white/80 backdrop-blur rounded-full px-3 py-3 min-h-[48px] shadow-lg border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap'
+  const btn = 'bg-white/90 rounded-full px-3 py-2 min-h-[40px] border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap shadow-sm'
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
-      {!isMuted && (
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={volume}
-          onChange={handleVolumeChange}
-          className="w-24 sm:w-28 h-8 accent-[#FFCB05] cursor-pointer"
-          style={{ touchAction: 'none' }}
-          aria-label="Music volume"
-        />
-      )}
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t-2 border-amber-200 shadow-lg">
+      <div className="max-w-2xl mx-auto px-4 py-2 flex items-center gap-2 flex-wrap justify-between">
+        {/* Left: theme controls */}
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={themeState === 'idle' ? playTheme : stopTheme} className={btn}>
+            {themeState === 'idle' ? '🎵 Play Theme' : '⏹ Stop'}
+          </button>
+          {themeState !== 'idle' && (
+            <button
+              type="button"
+              onClick={themeState === 'playing' ? pauseTheme : resumeTheme}
+              className={btn}
+            >
+              {themeState === 'playing' ? '⏸ Pause' : '▶ Resume'}
+            </button>
+          )}
+        </div>
 
-      {/* Play Theme / Stop Theme button */}
-      <button type="button" onClick={themeState === 'idle' ? playTheme : stopTheme} className={btnBase}>
-        {themeState === 'idle' ? '🎵 Play Theme' : '⏹ Stop'}
-      </button>
-
-      {/* Pause / Resume — only shown while theme is active */}
-      {themeState !== 'idle' && (
-        <button
-          type="button"
-          onClick={themeState === 'playing' ? pauseTheme : resumeTheme}
-          className={btnBase}
-        >
-          {themeState === 'playing' ? '⏸ Pause' : '▶ Resume'}
-        </button>
-      )}
-
-      <button type="button" onClick={nextTrack} title="Next track" className={btnBase}>
-        Next ♪
-      </button>
-
-      <button
-        type="button"
-        onClick={toggleMute}
-        title={isMuted ? 'Unmute music' : 'Mute music'}
-        className="bg-white/80 backdrop-blur rounded-full px-4 py-3 min-w-[48px] min-h-[48px] shadow-lg border border-amber-200 text-xl hover:bg-white transition-colors"
-      >
-        {isMuted ? '🔇' : '🔊'}
-      </button>
+        {/* Right: BG music controls */}
+        <div className="flex items-center gap-2">
+          {!isMuted && (
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={handleVolumeChange}
+              className="w-20 sm:w-28 accent-[#FFCB05] cursor-pointer"
+              style={{ touchAction: 'none' }}
+              aria-label="Music volume"
+            />
+          )}
+          <button type="button" onClick={nextTrack} className={btn}>
+            Next ♪
+          </button>
+          <button
+            type="button"
+            onClick={toggleMute}
+            title={isMuted ? 'Unmute music' : 'Mute music'}
+            className="bg-white/90 rounded-full px-3 py-2 min-w-[40px] min-h-[40px] border border-amber-200 text-lg hover:bg-white transition-colors shadow-sm"
+          >
+            {isMuted ? '🔇' : '🔊'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
