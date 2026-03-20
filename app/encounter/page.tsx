@@ -43,18 +43,24 @@ export default function EncounterPage() {
     if (!compositeImageUrl || !selectedPokemon) return
     const fireTTS = async () => {
       try {
+        console.log('[tts-client] firing for:', selectedPokemon.name)
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pokemonName: selectedPokemon.name }),
         })
+        console.log('[tts-client] response status:', res.status)
         if (res.ok) {
           const blob = await res.blob()
+          console.log('[tts-client] blob size:', blob.size)
           const audio = new Audio(URL.createObjectURL(blob))
-          audio.play().catch(() => {})
+          audio.play().catch((e) => console.error('[tts-client] play error:', e))
+        } else {
+          const err = await res.text()
+          console.error('[tts-client] API error:', res.status, err)
         }
       } catch (e) {
-        console.error('TTS error:', e)
+        console.error('[tts-client] fetch error:', e)
       }
     }
     fireTTS()

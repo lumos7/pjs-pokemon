@@ -12,6 +12,7 @@ export function MusicPlayer() {
     const track = pickRandomTrack()
     const audio = new Audio(`/music/${track}`)
     audio.loop = true
+    audio.volume = 0.3
     audioRef.current = audio
 
     const unlock = () => {
@@ -42,13 +43,39 @@ export function MusicPlayer() {
     }
   }
 
+  const nextTrack = () => {
+    const track = pickRandomTrack()
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    const audio = new Audio(`/music/${track}`)
+    audio.loop = true
+    audio.volume = 0.3
+    audio.muted = isMuted
+    audioRef.current = audio
+    if (hasStarted) {
+      audio.play().catch(() => {})
+    }
+  }
+
   return (
-    <button
-      onClick={toggleMute}
-      title={isMuted ? 'Unmute music' : 'Mute music'}
-      className="fixed bottom-4 right-4 z-50 bg-white/80 backdrop-blur rounded-full px-4 py-3 min-w-[48px] min-h-[48px] shadow-lg border border-amber-200 text-xl hover:bg-white transition-colors"
-    >
-      {isMuted ? '🔇' : '🔊'}
-    </button>
+    <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+      <button
+        type="button"
+        onClick={nextTrack}
+        title="Next track"
+        className="bg-white/80 backdrop-blur rounded-full px-3 py-3 min-h-[48px] shadow-lg border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap"
+      >
+        Next ♪
+      </button>
+      <button
+        type="button"
+        onClick={toggleMute}
+        title={isMuted ? 'Unmute music' : 'Mute music'}
+        className="bg-white/80 backdrop-blur rounded-full px-4 py-3 min-w-[48px] min-h-[48px] shadow-lg border border-amber-200 text-xl hover:bg-white transition-colors"
+      >
+        {isMuted ? '🔇' : '🔊'}
+      </button>
+    </div>
   )
 }
