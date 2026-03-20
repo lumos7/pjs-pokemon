@@ -8,14 +8,13 @@ interface SceneSelectorProps {
 }
 
 export function SceneSelector({ selected, onSelect }: SceneSelectorProps) {
-  console.log('[SceneSelector] render, selected:', selected)
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {scenes.map((scene) => (
         <button
           type="button"
           key={scene.id}
-          onClick={() => { console.log('[SceneSelector] clicked:', scene.id); onSelect(scene.id) }}
+          onClick={() => onSelect(scene.id)}
           className={`relative rounded-xl overflow-hidden cursor-pointer border-4 transition-all min-h-[80px] ${
             selected === scene.id
               ? 'border-[#FFCB05] scale-105'
