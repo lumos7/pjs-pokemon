@@ -142,8 +142,8 @@ export default function EncounterPage() {
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-gray-800">Choose a Pokemon</h2>
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <h2 className="text-lg font-bold text-gray-800 mr-1">Choose a Pokemon</h2>
           {/* Region filter */}
           <div className="flex gap-1 bg-amber-50 border border-amber-200 rounded-full p-1">
             {REGIONS.map(({ value, label }) => (
@@ -161,6 +161,22 @@ export default function EncounterPage() {
               </button>
             ))}
           </div>
+          {/* Generate + Surprise Me — right side of same row */}
+          <div className="flex gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={!selectedScene || !selectedPokemon || isGenerating}
+              className="bg-[#FFCB05] text-gray-900 font-bold text-sm rounded-full px-4 py-2 min-h-[40px] shadow hover:bg-yellow-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isGenerating ? 'Generating...' : 'Generate!'}
+            </button>
+            <SurpriseButton
+              onSurprise={handleSurprise}
+              disabled={isGenerating || filteredPokemon.length === 0}
+              compact
+            />
+          </div>
         </div>
         {loadingPokemon ? (
           <p className="text-gray-500 text-center py-4">Loading Pokemon...</p>
@@ -171,21 +187,6 @@ export default function EncounterPage() {
             onSelect={handleSelectPokemon}
           />
         )}
-      </section>
-
-      <section className="flex flex-col sm:flex-row gap-3">
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={!selectedScene || !selectedPokemon || isGenerating}
-          className="flex-1 bg-[#FFCB05] text-gray-900 font-bold text-xl rounded-full px-8 py-4 min-h-[56px] shadow-lg hover:bg-yellow-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isGenerating ? 'Generating...' : 'Generate!'}
-        </button>
-        <SurpriseButton
-          onSurprise={handleSurprise}
-          disabled={isGenerating || filteredPokemon.length === 0}
-        />
       </section>
 
       <EncounterCanvas
