@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MUSIC_TRACKS, pickRandomTrack } from '@/lib/scenes'
+import { pickRandomTrack } from '@/lib/scenes'
 
 export function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
