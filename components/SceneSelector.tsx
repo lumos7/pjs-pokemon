@@ -12,12 +12,13 @@ export function SceneSelector({ selected, onSelect }: SceneSelectorProps) {
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {scenes.map((scene) => (
         <button
+          type="button"
           key={scene.id}
           onClick={() => onSelect(scene.id)}
-          className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all min-h-[80px] ${
+          className={`relative rounded-xl overflow-hidden cursor-pointer border-4 transition-all min-h-[80px] ${
             selected === scene.id
-              ? 'border-[#FFCB05] ring-4 ring-[#FFCB05] scale-105'
-              : 'border-amber-200 hover:border-amber-400'
+              ? 'border-[#FFCB05] scale-105'
+              : 'border-transparent hover:border-amber-300'
           }`}
         >
           <img

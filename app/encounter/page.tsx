@@ -16,12 +16,20 @@ export default function EncounterPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [loadingPokemon, setLoadingPokemon] = useState(true)
 
-  // Fetch pokemon list on mount
+  // Fetch pokemon list on mount — direct PokeAPI call avoids server-side timeout
   useEffect(() => {
-    fetch('/api/pokemon')
-      .then((r) => r.json())
-      .then((data) => {
-        setPokemonList(data)
+    fetch('https://pokeapi.co/api/v2/pokemon?limit=250&offset=0')
+      .then((r) => {
+        if (!r.ok) throw new Error(`PokeAPI error: ${r.status}`)
+        return r.json()
+      })
+      .then((data: { results: { name: string; url: string }[] }) => {
+        const list: Pokemon[] = data.results.map((p) => {
+          const segments = p.url.replace(/\/$/, '').split('/')
+          const id = parseInt(segments[segments.length - 1], 10)
+          return { id, name: p.name }
+        })
+        setPokemonList(list)
         setLoadingPokemon(false)
       })
       .catch((e) => {
