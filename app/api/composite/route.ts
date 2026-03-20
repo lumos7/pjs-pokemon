@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       .png()
       .toBuffer()
 
-    return new NextResponse(compositeImage, {
+    return new NextResponse(compositeImage as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
