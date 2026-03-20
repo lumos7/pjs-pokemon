@@ -57,6 +57,11 @@ export async function POST(req: NextRequest) {
     const captionText = `Aziah meets ${displayName}!`
     const svgCaption = Buffer.from(`
       <svg width="${CANVAS_WIDTH}" height="80" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-10%" y="-20%" width="120%" height="160%">
+            <feDropShadow dx="2" dy="2" stdDeviation="4" flood-color="black" flood-opacity="0.8"/>
+          </filter>
+        </defs>
         <text
           x="${CANVAS_WIDTH / 2}"
           y="60"
@@ -68,6 +73,7 @@ export async function POST(req: NextRequest) {
           stroke-width="6"
           paint-order="stroke fill"
           text-anchor="middle"
+          filter="url(#shadow)"
         >${captionText}</text>
       </svg>
     `)
