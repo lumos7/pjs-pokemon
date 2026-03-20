@@ -130,7 +130,7 @@ export default function EncounterPage() {
   console.log('[state] scene:', selectedScene, '| pokemon:', selectedPokemon?.name)
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-6">
       <h1 className="text-3xl sm:text-4xl font-extrabold text-center text-[#CC0000]"
           style={{ textShadow: '2px 2px 0 #FFCB05' }}>
         Create Your Adventure!
