@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, getCryUrl, TYPE_COLOURS, TYPE_EMOJI } from '@/lib/pokemon'
+import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, TYPE_HEX } from '@/lib/pokemon'
 
 interface EvolutionStage {
   id: number
@@ -92,11 +92,6 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-  const playCry = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    new Audio(getCryUrl(pokemon.id)).play().catch(() => {})
-  }
-
   const handleNameClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     onSpeakName(pokemon)
@@ -116,24 +111,14 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
         loading="lazy"
       />
 
-      {/* Name + cry button */}
-      <div className="flex items-center justify-between gap-1">
-        <button
-          type="button"
-          onClick={handleNameClick}
-          className="text-base font-bold text-gray-900 hover:text-[#CC0000] transition-colors text-left"
-        >
-          {capitalize(pokemon.name)}
-        </button>
-        <button
-          type="button"
-          onClick={playCry}
-          title="Play cry"
-          className="text-lg leading-none hover:scale-110 transition-transform"
-        >
-          🔊
-        </button>
-      </div>
+      {/* Name — click to speak (TTS → cry) */}
+      <button
+        type="button"
+        onClick={handleNameClick}
+        className="text-base font-bold text-gray-900 hover:text-[#CC0000] transition-colors text-left"
+      >
+        {capitalize(pokemon.name)}
+      </button>
 
       {/* Type badges */}
       {data ? (
@@ -141,9 +126,10 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
           {data.types.map((t) => (
             <span
               key={t}
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_COLOURS[t] ?? 'bg-gray-200 text-gray-700'}`}
+              className="text-xs font-bold uppercase px-2 py-0.5 rounded-full text-white tracking-wide"
+              style={{ backgroundColor: TYPE_HEX[t] ?? '#A8A878' }}
             >
-              {TYPE_EMOJI[t] ?? ''} {capitalize(t)}
+              {t}
             </span>
           ))}
         </div>

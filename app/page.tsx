@@ -20,8 +20,15 @@ export default function Home() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
       <h1
-        className="text-5xl sm:text-7xl font-extrabold text-[#FFCB05] mb-1"
-        style={{ textShadow: '3px 3px 0 #CC0000, 6px 6px 0 rgba(0,0,0,0.1)' }}
+        className="text-5xl sm:text-7xl mb-1"
+        style={{
+          fontFamily: "'Bangers', 'Impact', cursive",
+          color: '#FFCB05',
+          WebkitTextStroke: '3px #2A75BB',
+          paintOrder: 'stroke fill',
+          letterSpacing: '0.04em',
+          textShadow: '4px 4px 0 #1a4f7a',
+        }}
       >
         PJ&apos;s Pokemon
       </h1>
@@ -68,13 +75,13 @@ export default function Home() {
       <div className="flex flex-col sm:flex-row gap-4 items-center">
         <Link
           href="/encounter"
-          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-12 py-6 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center"
+          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-10 py-5 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center justify-center"
         >
           Let&apos;s Play!
         </Link>
         <Link
           href="/pokemon-list"
-          className="bg-[#FFCB05] text-gray-900 text-xl font-bold rounded-full px-8 py-5 shadow-lg hover:scale-105 transition-transform min-h-[64px] inline-flex items-center"
+          className="bg-[#FFCB05] text-gray-900 text-2xl font-bold rounded-full px-10 py-5 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center justify-center"
         >
           Pokédex 📖
         </Link>

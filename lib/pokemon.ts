@@ -33,30 +33,24 @@ export function getCryUrl(id: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`
 }
 
-export const TYPE_COLOURS: Record<string, string> = {
-  normal:   'bg-gray-300 text-gray-800',
-  fire:     'bg-orange-400 text-white',
-  water:    'bg-blue-400 text-white',
-  electric: 'bg-yellow-300 text-gray-800',
-  grass:    'bg-green-500 text-white',
-  ice:      'bg-cyan-300 text-gray-800',
-  fighting: 'bg-red-600 text-white',
-  poison:   'bg-purple-400 text-white',
-  ground:   'bg-yellow-600 text-white',
-  flying:   'bg-indigo-300 text-gray-800',
-  psychic:  'bg-pink-400 text-white',
-  bug:      'bg-lime-500 text-white',
-  rock:     'bg-yellow-700 text-white',
-  ghost:    'bg-purple-700 text-white',
-  dragon:   'bg-purple-600 text-white',
-  dark:     'bg-gray-700 text-white',
-  steel:    'bg-gray-400 text-white',
-  fairy:    'bg-pink-300 text-gray-800',
-}
-
-export const TYPE_EMOJI: Record<string, string> = {
-  normal: '⬜', fire: '🔥', water: '💧', electric: '⚡', grass: '🌿',
-  ice: '❄️', fighting: '🥊', poison: '☠️', ground: '🌍', flying: '🌬️',
-  psychic: '🔮', bug: '🐛', rock: '🪨', ghost: '👻', dragon: '🐉',
-  dark: '🌑', steel: '⚙️', fairy: '✨',
+// Official Pokémon type hex colours
+export const TYPE_HEX: Record<string, string> = {
+  normal:   '#A8A878',
+  fire:     '#F08030',
+  water:    '#6890F0',
+  electric: '#F8D030',
+  grass:    '#78C850',
+  ice:      '#98D8D8',
+  fighting: '#C03028',
+  poison:   '#A040A0',
+  ground:   '#E0C068',
+  flying:   '#A890F0',
+  psychic:  '#F85888',
+  bug:      '#A8B820',
+  rock:     '#B8A038',
+  ghost:    '#705898',
+  dragon:   '#7038F8',
+  dark:     '#705848',
+  steel:    '#B8B8D0',
+  fairy:    '#EE99AC',
 }
