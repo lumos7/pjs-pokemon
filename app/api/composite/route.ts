@@ -56,19 +56,21 @@ export async function POST(req: NextRequest) {
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
     const captionText = `Aziah meets ${displayName}!`
     const cx = CANVAS_WIDTH / 2
-    const svgStr = `<svg width="${CANVAS_WIDTH}" height="80" xmlns="http://www.w3.org/2000/svg">
-  <text x="${cx + 2}" y="62" font-family="Arial Black,Arial,sans-serif" font-size="56" font-weight="bold" fill="rgba(0,0,0,0.8)" text-anchor="middle">${captionText}</text>
-  <text x="${cx}" y="60" font-family="Arial Black,Arial,sans-serif" font-size="56" font-weight="bold" fill="white" stroke="#1a1a1a" stroke-width="5" paint-order="stroke fill" text-anchor="middle">${captionText}</text>
+    const SVG_H = 100
+    // Shadow offset copy first, then stroked white text on top
+    const svgStr = `<svg width="${CANVAS_WIDTH}" height="${SVG_H}" xmlns="http://www.w3.org/2000/svg">
+  <text x="${cx + 3}" y="78" font-family="Arial,sans-serif" font-size="58" font-weight="bold" fill="rgba(0,0,0,0.85)" text-anchor="middle">${captionText}</text>
+  <text x="${cx}" y="75" font-family="Arial,sans-serif" font-size="58" font-weight="bold" fill="white" stroke="#111111" stroke-width="6" paint-order="stroke fill" text-anchor="middle">${captionText}</text>
 </svg>`
     console.log('[composite] svg caption:', svgStr)
     const svgCaption = Buffer.from(svgStr)
 
-    // Composite all layers
+    // Composite all layers (SVG last = on top)
     const compositeImage = await baseImage
       .composite([
         { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },
         { input: pjBuffer, top: pjTop, left: pjLeft },
-        { input: svgCaption, top: CANVAS_HEIGHT - 90, left: 0 },
+        { input: svgCaption, top: CANVAS_HEIGHT - SVG_H - 10, left: 0 },
       ])
       .png()
       .toBuffer()
