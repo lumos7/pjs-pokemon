@@ -76,6 +76,12 @@ export default function EncounterPage() {
     playTTS(selectedPokemon.name)
   }, [compositeImageUrl, selectedPokemon])
 
+  const handleSelectPokemon = (p: Pokemon) => {
+    setSelectedPokemon(p)
+    // Clear generated result so stale image isn't shown and TTS doesn't fire
+    if (compositeImageUrl) setCompositeImageUrl(null)
+  }
+
   const filteredPokemon = pokemonList.filter((p) => {
     if (region === 'kanto') return p.id <= 151
     if (region === 'johto') return p.id >= 152 && p.id <= 251
@@ -159,7 +165,7 @@ export default function EncounterPage() {
           <PokemonSelector
             pokemon={filteredPokemon}
             selected={selectedPokemon}
-            onSelect={setSelectedPokemon}
+            onSelect={handleSelectPokemon}
           />
         )}
       </section>
