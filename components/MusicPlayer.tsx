@@ -7,31 +7,80 @@ const DEFAULT_VOLUME = 0.15
 type ThemeState = 'idle' | 'playing' | 'paused'
 
 export function MusicPlayer() {
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const themeRef = useRef<HTMLAudioElement | null>(null)
-  // Ref so the unlock closure always sees the current value (avoids stale closure bug)
-  const themeActiveRef = useRef(false)
-  const hasStartedRef = useRef(false)
+  // Web Audio API refs for BG music
+  const ctxRef       = useRef<AudioContext | null>(null)
+  const gainRef      = useRef<GainNode | null>(null)
+  const sourceRef    = useRef<AudioBufferSourceNode | null>(null)
+  const loadTokenRef = useRef(0) // cancel stale fetches on nextTrack
 
-  const [isMuted, setIsMuted] = useState(false)
-  const [volume, setVolume] = useState(DEFAULT_VOLUME)
+  // Theme player stays as HTML Audio (one-shot, independent)
+  const themeRef = useRef<HTMLAudioElement | null>(null)
+
+  const themeActiveRef = useRef(false)
+  const hasStartedRef  = useRef(false)
+
+  const [isMuted, setIsMuted]     = useState(false)
+  const [volume, setVolume]       = useState(DEFAULT_VOLUME)
   const [themeState, setThemeState] = useState<ThemeState>('idle')
+
+  // Build the Web Audio graph once and return the AudioContext
+  function getCtx(): AudioContext {
+    if (ctxRef.current) return ctxRef.current
+
+    const ctx = new AudioContext()
+
+    const compressor = ctx.createDynamicsCompressor()
+    compressor.threshold.setValueAtTime(-24, ctx.currentTime)
+    compressor.knee.setValueAtTime(30, ctx.currentTime)
+    compressor.ratio.setValueAtTime(12, ctx.currentTime)
+    compressor.attack.setValueAtTime(0.003, ctx.currentTime)
+    compressor.release.setValueAtTime(0.25, ctx.currentTime)
+    compressor.connect(ctx.destination)
+
+    const gain = ctx.createGain()
+    gain.gain.value = DEFAULT_VOLUME
+    gain.connect(compressor)
+
+    gainRef.current = gain
+    ctxRef.current  = ctx
+    return ctx
+  }
+
+  // Fetch, decode, and play a track through the Web Audio graph
+  async function startBgTrack(track: string, token: number) {
+    const ctx = getCtx()
+    if (ctx.state === 'suspended') await ctx.resume()
+
+    const res = await fetch(`/music/${encodeURIComponent(track)}`)
+    const arrayBuf = await res.arrayBuffer()
+
+    // Bail if a newer load was requested while we were fetching
+    if (loadTokenRef.current !== token) return
+
+    const audioBuf = await ctx.decodeAudioData(arrayBuf)
+    if (loadTokenRef.current !== token) return
+
+    // Stop whatever was playing
+    try { sourceRef.current?.stop() } catch { /* already stopped */ }
+
+    const source = ctx.createBufferSource()
+    source.buffer  = audioBuf
+    source.loop    = true
+    source.connect(gainRef.current!)
+    source.start()
+    sourceRef.current = source
+    hasStartedRef.current = true
+  }
 
   useEffect(() => {
     const track = pickRandomTrack()
-    const audio = new Audio(`/music/${encodeURIComponent(track)}`)
-    audio.loop = true
-    audio.volume = DEFAULT_VOLUME
-    audioRef.current = audio
 
-    // Only start BG music if theme isn't active
     const unlock = () => {
       if (!hasStartedRef.current && !themeActiveRef.current) {
-        audio.play().then(() => {
-          hasStartedRef.current = true
-          document.removeEventListener('click', unlock)
-          document.removeEventListener('touchstart', unlock)
-        }).catch(() => {})
+        const token = ++loadTokenRef.current
+        startBgTrack(track, token).catch(() => {})
+        document.removeEventListener('click', unlock)
+        document.removeEventListener('touchstart', unlock)
       }
     }
 
@@ -41,14 +90,42 @@ export function MusicPlayer() {
     return () => {
       document.removeEventListener('click', unlock)
       document.removeEventListener('touchstart', unlock)
-      audio.pause()
+      try { sourceRef.current?.stop() } catch { /* ok */ }
+      ctxRef.current?.close()
       themeRef.current?.pause()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // --- BG music controls ---
+
+  const nextTrack = () => {
+    const track = pickRandomTrack()
+    const token = ++loadTokenRef.current
+    if (hasStartedRef.current && themeState === 'idle') {
+      startBgTrack(track, token).catch(() => {})
+    }
+  }
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setVolume(v)
+    if (gainRef.current && !isMuted) gainRef.current.gain.value = v
+    if (themeRef.current) themeRef.current.volume = v
+  }
+
+  const toggleMute = () => {
+    const next = !isMuted
+    setIsMuted(next)
+    if (gainRef.current) gainRef.current.gain.value = next ? 0 : volume
+    if (themeRef.current) themeRef.current.muted = next
+  }
+
+  // --- Theme controls (HTML Audio, independent of Web Audio graph) ---
+
   const resumeBg = () => {
-    if (audioRef.current && hasStartedRef.current) {
-      audioRef.current.play().catch(() => {})
+    if (hasStartedRef.current) {
+      ctxRef.current?.resume().catch(() => {})
     }
   }
 
@@ -65,17 +142,13 @@ export function MusicPlayer() {
   }
 
   const playTheme = () => {
-    // Mark theme active BEFORE pausing BG — prevents unlock handler from restarting BG
     themeActiveRef.current = true
-
-    // Ensure BG is paused
-    if (audioRef.current) {
-      audioRef.current.pause()
-    }
+    // Suspend BG via AudioContext (preserves playback position)
+    ctxRef.current?.suspend().catch(() => {})
 
     const theme = new Audio('/music/playtheme.mp3')
     theme.volume = volume
-    theme.muted = isMuted
+    theme.muted  = isMuted
     theme.onended = stopTheme
     themeRef.current = theme
     theme.play().catch(() => {})
@@ -92,31 +165,7 @@ export function MusicPlayer() {
     setThemeState('playing')
   }
 
-  const toggleMute = () => {
-    if (audioRef.current) audioRef.current.muted = !isMuted
-    if (themeRef.current) themeRef.current.muted = !isMuted
-    setIsMuted(prev => !prev)
-  }
-
-  const nextTrack = () => {
-    const track = pickRandomTrack()
-    audioRef.current?.pause()
-    const audio = new Audio(`/music/${encodeURIComponent(track)}`)
-    audio.loop = true
-    audio.volume = volume
-    audio.muted = isMuted
-    audioRef.current = audio
-    if (hasStartedRef.current && themeState === 'idle') {
-      audio.play().catch(() => {})
-    }
-  }
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value)
-    setVolume(v)
-    if (audioRef.current) audioRef.current.volume = v
-    if (themeRef.current) themeRef.current.volume = v
-  }
+  // --- Render ---
 
   const btn = 'bg-white/90 rounded-full px-3 py-2 min-h-[40px] border border-amber-200 text-sm font-bold hover:bg-white transition-colors whitespace-nowrap shadow-sm'
 
