@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-20T03:30:40.444Z"
+last_updated: "2026-03-20T03:34:34.462Z"
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # PJ's Pokemon — Project State
@@ -34,8 +34,11 @@ progress:
 - Target user: child named Aziah, on tablet/phone
 - Design: warm, bold, Pokémon-inspired colour palette, large tap targets, kids book feel
 - [Phase 01-full-app-build]: Used optionalDependencies for @img/sharp-linux-x64 so it installs on Vercel but not macOS dev
+- [Phase 01-full-app-build]: Pokemon ID extracted from PokéAPI URL segments, not array index
+- [Phase 01-full-app-build]: Module-scope pokemonCache for in-memory PokéAPI caching across requests
 
 ## History
 
 - 2026-03-20: Project initiated with full spec
 - 2026-03-20: Completed Plan 01-01 — scaffold, assets, config (4 min, 3 tasks, 30+ files)
+- 2026-03-20: Completed Plan 01-02 — lib layer: scenes, voices, pokemon (2 min, 3 tasks, 3 files)
