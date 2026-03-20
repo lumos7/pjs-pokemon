@@ -19,6 +19,7 @@ const REGIONS: { value: Region; label: string }[] = [
 
 function playCry(pokemonId: number) {
   const cry = new Audio(getCryUrl(pokemonId))
+  cry.volume = 0.33
   cry.play().catch(() => {})
 }
 

@@ -99,7 +99,9 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
 
   const handleCry = (e: React.MouseEvent) => {
     e.stopPropagation()
-    new Audio(getCryUrl(pokemon.id)).play().catch(() => {})
+    const cry = new Audio(getCryUrl(pokemon.id))
+    cry.volume = 0.33
+    cry.play().catch(() => {})
   }
 
   return (
