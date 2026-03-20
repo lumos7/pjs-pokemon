@@ -26,3 +26,12 @@ export const MUSIC_TRACKS = [
 export function pickRandomTrack(): string {
   return MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)]
 }
+
+export function fisherYates<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}

@@ -1,12 +1,32 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { pickRandomTrack } from '@/lib/scenes'
+import { MUSIC_TRACKS, fisherYates } from '@/lib/scenes'
 
 const DEFAULT_VOLUME = 0.15
 type ThemeState = 'idle' | 'playing' | 'paused'
 
 export function MusicPlayer() {
+  // Shuffle queue — guarantees every track plays once before repeats
+  const queueRef     = useRef<string[]>([])
+  const lastTrackRef = useRef<string | null>(null)
+
+  function nextFromQueue(): string {
+    if (queueRef.current.length === 0) {
+      // Re-shuffle; if only one track, no swap needed
+      const shuffled = fisherYates(MUSIC_TRACKS)
+      // Ensure reshuffled queue doesn't start with the track that just played
+      if (shuffled.length > 1 && shuffled[0] === lastTrackRef.current) {
+        const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1))
+        ;[shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]]
+      }
+      queueRef.current = shuffled
+    }
+    const track = queueRef.current.shift()!
+    lastTrackRef.current = track
+    return track
+  }
+
   // Web Audio API refs for BG music
   const ctxRef       = useRef<AudioContext | null>(null)
   const gainRef      = useRef<GainNode | null>(null)
@@ -73,7 +93,7 @@ export function MusicPlayer() {
   }
 
   useEffect(() => {
-    const track = pickRandomTrack()
+    const track = nextFromQueue()
 
     const unlock = () => {
       if (!hasStartedRef.current && !themeActiveRef.current) {
@@ -100,7 +120,7 @@ export function MusicPlayer() {
   // --- BG music controls ---
 
   const nextTrack = () => {
-    const track = pickRandomTrack()
+    const track = nextFromQueue()
     const token = ++loadTokenRef.current
     if (hasStartedRef.current && themeState === 'idle') {
       startBgTrack(track, token).catch(() => {})
