@@ -50,33 +50,18 @@ export async function POST(req: NextRequest) {
       .toBuffer()
     const pjMeta = await sharp(pjBuffer).metadata()
     const pjLeft = 20
-    const pjTop = CANVAS_HEIGHT - (pjMeta.height || PJ_HEIGHT) - 10
+    const pjTop = CANVAS_HEIGHT - (pjMeta.height || PJ_HEIGHT)
 
     // Build SVG caption: "Aziah meets [Name]!" — white text with dark outline
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
     const captionText = `Aziah meets ${displayName}!`
-    const svgCaption = Buffer.from(`
-      <svg width="${CANVAS_WIDTH}" height="80" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <filter id="shadow" x="-10%" y="-20%" width="120%" height="160%">
-            <feDropShadow dx="2" dy="2" stdDeviation="4" flood-color="black" flood-opacity="0.8"/>
-          </filter>
-        </defs>
-        <text
-          x="${CANVAS_WIDTH / 2}"
-          y="60"
-          font-family="Arial, Liberation Sans, sans-serif"
-          font-size="56"
-          font-weight="bold"
-          fill="white"
-          stroke="#1a1a1a"
-          stroke-width="6"
-          paint-order="stroke fill"
-          text-anchor="middle"
-          filter="url(#shadow)"
-        >${captionText}</text>
-      </svg>
-    `)
+    const cx = CANVAS_WIDTH / 2
+    const svgStr = `<svg width="${CANVAS_WIDTH}" height="80" xmlns="http://www.w3.org/2000/svg">
+  <text x="${cx + 2}" y="62" font-family="Arial Black,Arial,sans-serif" font-size="56" font-weight="bold" fill="rgba(0,0,0,0.8)" text-anchor="middle">${captionText}</text>
+  <text x="${cx}" y="60" font-family="Arial Black,Arial,sans-serif" font-size="56" font-weight="bold" fill="white" stroke="#1a1a1a" stroke-width="5" paint-order="stroke fill" text-anchor="middle">${captionText}</text>
+</svg>`
+    console.log('[composite] svg caption:', svgStr)
+    const svgCaption = Buffer.from(svgStr)
 
     // Composite all layers
     const compositeImage = await baseImage
