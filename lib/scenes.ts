@@ -13,16 +13,14 @@ export const scenes: Scene[] = [
 ]
 
 export const MUSIC_TRACKS = [
-  'pokemon-theme.mp3',
-  'title-screen.mp3',
-  'jigglypuffs-song.mp3',
-  'opening-theme.mp3',
-  'professor-oaks-theme.mp3',
-  'bicycle-theme.mp3',
-  'lance-and-red-battle-theme.mp3',
-  'celadon-city-fuchsia-city.mp3',
-  'pokemon-center-lofi.mp3',
-  'route-3-lofi.mp3',
+  '01 - Pokemon Main Theme.mp3',
+  '02 - Pallet Town (Pokemon Red_Blue).mp3',
+  '17 Professor Oak\'s Theme.mp3',
+  '49 Bicycle Theme.mp3',
+  '78_celadon_city,_fuchsia_city.mp3',
+  '092 - Pokemon - jigglypuff\'s song.mp3',
+  'Kato - Pokémon Center - Lofi.mp3',
+  'Kato - Route 3 - Lofi.mp3',
 ]
 
 export function pickRandomTrack(): string {

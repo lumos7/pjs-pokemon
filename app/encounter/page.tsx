@@ -113,6 +113,7 @@ export default function EncounterPage() {
   }
 
   const handleGenerate = async () => {
+    console.log('[generate] selectedScene:', selectedScene, '| selectedPokemon:', selectedPokemon?.name)
     if (!selectedScene || !selectedPokemon) return
     await generate(selectedScene, selectedPokemon)
   }
@@ -125,6 +126,8 @@ export default function EncounterPage() {
     setSelectedPokemon(randomPokemon)
     generate(randomScene.id, randomPokemon)
   }
+
+  console.log('[state] scene:', selectedScene, '| pokemon:', selectedPokemon?.name)
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">

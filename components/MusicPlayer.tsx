@@ -13,7 +13,7 @@ export function MusicPlayer() {
 
   useEffect(() => {
     const track = pickRandomTrack()
-    const audio = new Audio(`/music/${track}`)
+    const audio = new Audio(`/music/${encodeURIComponent(track)}`)
     audio.loop = true
     audio.volume = DEFAULT_VOLUME
     audioRef.current = audio
@@ -51,7 +51,7 @@ export function MusicPlayer() {
     if (audioRef.current) {
       audioRef.current.pause()
     }
-    const audio = new Audio(`/music/${track}`)
+    const audio = new Audio(`/music/${encodeURIComponent(track)}`)
     audio.loop = true
     audio.volume = volume
     audio.muted = isMuted
