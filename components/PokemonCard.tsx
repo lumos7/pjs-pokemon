@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, TYPE_HEX } from '@/lib/pokemon'
+import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, getCryUrl, TYPE_HEX } from '@/lib/pokemon'
 
 interface EvolutionStage {
   id: number
@@ -97,6 +97,11 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
     onSpeakName(pokemon)
   }
 
+  const handleCry = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    new Audio(getCryUrl(pokemon.id)).play().catch(() => {})
+  }
+
   return (
     <div
       ref={ref}
@@ -111,14 +116,24 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
         loading="lazy"
       />
 
-      {/* Name — click to speak (TTS → cry) */}
-      <button
-        type="button"
-        onClick={handleNameClick}
-        className="text-base font-bold text-gray-900 hover:text-[#CC0000] transition-colors text-left"
-      >
-        {capitalize(pokemon.name)}
-      </button>
+      {/* Name (TTS only) + cry button (cry only) — independent */}
+      <div className="flex items-center justify-between gap-1">
+        <button
+          type="button"
+          onClick={handleNameClick}
+          className="text-base font-bold text-gray-900 hover:text-[#CC0000] transition-colors text-left"
+        >
+          {capitalize(pokemon.name)}
+        </button>
+        <button
+          type="button"
+          onClick={handleCry}
+          title="Play cry"
+          className="text-lg leading-none hover:scale-110 transition-transform flex-shrink-0"
+        >
+          🔊
+        </button>
+      </div>
 
       {/* Type badges */}
       {data ? (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pokemon, getCryUrl } from '@/lib/pokemon'
+import { Pokemon } from '@/lib/pokemon'
 import { PokemonCard } from '@/components/PokemonCard'
 
 type Region = 'kanto' | 'johto' | 'both'
@@ -21,11 +21,7 @@ async function speakName(pokemon: Pokemon) {
     })
     if (res.ok) {
       const blob = await res.blob()
-      const audio = new Audio(URL.createObjectURL(blob))
-      audio.addEventListener('ended', () => {
-        new Audio(getCryUrl(pokemon.id)).play().catch(() => {})
-      }, { once: true })
-      audio.play().catch(() => {})
+      new Audio(URL.createObjectURL(blob)).play().catch(() => {})
     }
   } catch { /* ignore */ }
 }
