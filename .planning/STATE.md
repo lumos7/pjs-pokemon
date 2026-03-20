@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-20T03:39:02.901Z"
+last_updated: "2026-03-20T03:44:21.114Z"
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # PJ's Pokemon — Project State
@@ -39,6 +39,8 @@ progress:
 - [Phase 01-full-app-build]: Pokemon right-60% canvas placement using leftMin = CANVAS_WIDTH * 0.4
 - [Phase 01-full-app-build]: SVG caption uses paint-order stroke fill for outline without external fonts
 - [Phase 01-full-app-build]: ElevenLabs uses xi-api-key header (not Authorization: Bearer)
+- [Phase 01-full-app-build]: Surprise handler calls generate() directly with random values to avoid async setState race condition
+- [Phase 01-full-app-build]: Binary API responses (image, audio) use res.blob() + URL.createObjectURL() on client
 
 ## History
 
