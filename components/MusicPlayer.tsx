@@ -3,16 +3,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { pickRandomTrack } from '@/lib/scenes'
 
+const DEFAULT_VOLUME = 0.15
+
 export function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
+  const [volume, setVolume] = useState(DEFAULT_VOLUME)
 
   useEffect(() => {
     const track = pickRandomTrack()
     const audio = new Audio(`/music/${track}`)
     audio.loop = true
-    audio.volume = 0.3
+    audio.volume = DEFAULT_VOLUME
     audioRef.current = audio
 
     const unlock = () => {
@@ -50,7 +53,7 @@ export function MusicPlayer() {
     }
     const audio = new Audio(`/music/${track}`)
     audio.loop = true
-    audio.volume = 0.3
+    audio.volume = volume
     audio.muted = isMuted
     audioRef.current = audio
     if (hasStarted) {
@@ -58,8 +61,31 @@ export function MusicPlayer() {
     }
   }
 
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setVolume(v)
+    if (audioRef.current) {
+      audioRef.current.volume = v
+    }
+  }
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+      {/* Volume slider — hidden when muted */}
+      {!isMuted && (
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={volume}
+          onChange={handleVolumeChange}
+          className="w-24 sm:w-28 h-8 accent-[#FFCB05] cursor-pointer"
+          style={{ touchAction: 'none' }}
+          aria-label="Music volume"
+        />
+      )}
+
       <button
         type="button"
         onClick={nextTrack}
@@ -68,6 +94,7 @@ export function MusicPlayer() {
       >
         Next ♪
       </button>
+
       <button
         type="button"
         onClick={toggleMute}
