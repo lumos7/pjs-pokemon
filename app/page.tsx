@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 const STARTER_POKEMON = [
+  { id: 39,  name: 'Jigglypuff' },
   { id: 1,   name: 'Bulbasaur'  },
   { id: 4,   name: 'Charmander' },
   { id: 7,   name: 'Squirtle'   },
@@ -13,8 +14,8 @@ function artworkUrl(id: number) {
 }
 
 export default function Home() {
-  const left  = STARTER_POKEMON.slice(0, 2)   // Bulbasaur, Charmander
-  const right = STARTER_POKEMON.slice(2)       // Squirtle, Pikachu, Eevee
+  const left  = STARTER_POKEMON.slice(0, 3)   // Jigglypuff, Bulbasaur, Charmander
+  const right = STARTER_POKEMON.slice(3)       // Squirtle, Pikachu, Eevee
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
