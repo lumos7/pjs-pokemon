@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pickRandomVoice } from '@/lib/voices'
 
 // "Eye-Zy-Ah" is the phonetic spelling ElevenLabs uses to pronounce Aziah correctly
-const SPOKEN_NAME = 'Eye-Zy-Ah'
+const SPOKEN_NAME = 'Ah-Sai-Ah'
 
 const PHRASES = [
   (name: string) => `Look ${SPOKEN_NAME}, this is ${name}!`,
