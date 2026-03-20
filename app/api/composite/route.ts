@@ -8,7 +8,6 @@ const CANVAS_WIDTH = 1200
 const CANVAS_HEIGHT = 900
 const POKEMON_SIZE = 380
 const PJ_HEIGHT = 500
-const CAPTION_H = 100
 
 const FONT_PATH = path.join(process.cwd(), 'public', 'fonts', 'Bangers-Regular.ttf')
 
@@ -50,49 +49,78 @@ export async function POST(req: NextRequest) {
     const pjLeft = 20
     const pjTop = CANVAS_HEIGHT - (pjMeta.height || PJ_HEIGHT)
 
-    // Caption text
+    // Caption — mixed case, Bangers, 40% smaller (31000 vs old 52000)
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
     const captionText = `Aziah meets ${displayName}!`
-    const captionY = CANVAS_HEIGHT - CAPTION_H - 10
 
-    // Semi-transparent dark bar behind text
-    const barBuf = await sharp({
-      create: {
-        width: CANVAS_WIDTH,
-        height: CAPTION_H,
-        channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 170 },
-      },
-    }).png().toBuffer()
+    const layers: sharp.OverlayOptions[] = [
+      { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },
+      { input: pjBuffer, top: pjTop, left: pjLeft },
+    ]
 
-    // Sharp native text rendering via Pango — uses bundled font file directly
-    let textBuf: Buffer | null = null
     try {
-      console.log('[composite] using Sharp text rendering with fontfile:', FONT_PATH)
-      textBuf = await sharp({
+      console.log('[composite] rendering text with Sharp/Pango fontfile:', FONT_PATH)
+      const TEXT_W = CANVAS_WIDTH - 40  // 20px padding each side
+      const STROKE = 3                   // outline offset in px
+      const PAD = STROKE
+
+      // Dark stroke text (rendered once, composited at 4 offsets)
+      const darkBuf = await sharp({
         text: {
-          text: `<span foreground="white" size="52000" weight="bold">${captionText}</span>`,
+          text: `<span foreground="#111111" size="31000" weight="bold">${captionText}</span>`,
           fontfile: FONT_PATH,
           font: 'Bangers',
-          width: CANVAS_WIDTH - 40,
-          height: CAPTION_H,
+          width: TEXT_W,
+          height: 80,
           align: 'centre',
           rgba: true,
         },
       }).png().toBuffer()
-      console.log('[composite] sharp text OK, buffer size:', textBuf.length)
-    } catch (e) {
-      console.error('[composite] sharp text failed, no text overlay:', (e as Error).message)
-    }
 
-    // Composite all layers
-    const layers: sharp.OverlayOptions[] = [
-      { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },
-      { input: pjBuffer, top: pjTop, left: pjLeft },
-      { input: barBuf, top: captionY, left: 0 },
-    ]
-    if (textBuf) {
-      layers.push({ input: textBuf, top: captionY + 10, left: 20 })
+      // White text
+      const whiteBuf = await sharp({
+        text: {
+          text: `<span foreground="white" size="31000" weight="bold">${captionText}</span>`,
+          fontfile: FONT_PATH,
+          font: 'Bangers',
+          width: TEXT_W,
+          height: 80,
+          align: 'centre',
+          rgba: true,
+        },
+      }).png().toBuffer()
+
+      const darkMeta = await sharp(darkBuf).metadata()
+      const tw = darkMeta.width ?? TEXT_W
+      const th = darkMeta.height ?? 60
+
+      // Canvas with room for the stroke offsets on all sides
+      const canvasW = tw + PAD * 2
+      const canvasH = th + PAD * 2
+
+      // Build outlined text: dark at N/S/E/W offsets, white centered
+      const outlinedBuf = await sharp({
+        create: { width: canvasW, height: canvasH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+      })
+        .composite([
+          { input: darkBuf, left: PAD,        top: 0    },   // N
+          { input: darkBuf, left: PAD,        top: PAD*2 },  // S
+          { input: darkBuf, left: 0,          top: PAD   },  // W
+          { input: darkBuf, left: PAD*2,      top: PAD   },  // E
+          { input: whiteBuf, left: PAD,       top: PAD   },  // white centre
+        ])
+        .png()
+        .toBuffer()
+
+      // Position: bottom of image with 25px comfortable padding
+      const captionTop = CANVAS_HEIGHT - canvasH - 25
+      // Center horizontally (TEXT_W starts at left=20, PAD shifts it back)
+      const captionLeft = 20 - PAD
+
+      console.log('[composite] outlined text OK — canvas:', canvasW, 'x', canvasH, '| top:', captionTop)
+      layers.push({ input: outlinedBuf, top: Math.max(0, captionTop), left: Math.max(0, captionLeft) })
+    } catch (e) {
+      console.error('[composite] text rendering failed, skipping caption:', (e as Error).message)
     }
 
     const compositeImage = await baseImage.composite(layers).png().toBuffer()
