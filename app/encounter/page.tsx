@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { scenes } from '@/lib/scenes'
 import { Pokemon, getCryUrl } from '@/lib/pokemon'
@@ -41,7 +41,7 @@ async function playTTS(pokemonName: string, pokemonId: number | null = null, nam
   }
 }
 
-export default function EncounterPage() {
+function EncounterContent() {
   const searchParams = useSearchParams()
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([])
   const [region, setRegion] = useState<Region>('both')
@@ -214,5 +214,13 @@ export default function EncounterPage() {
         onClose={() => setCompositeImageUrl(null)}
       />
     </main>
+  )
+}
+
+export default function EncounterPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>}>
+      <EncounterContent />
+    </Suspense>
   )
 }
