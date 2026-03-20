@@ -1,10 +1,1 @@
-{
-  "functions": {
-    "app/api/composite/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/tts/route.ts": {
-      "maxDuration": 15
-    }
-  }
-}
+{}
