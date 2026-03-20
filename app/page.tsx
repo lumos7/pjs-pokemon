@@ -1,8 +1,6 @@
-'use client'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function Home() {
-  const router = useRouter()
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
       <h1
@@ -14,12 +12,12 @@ export default function Home() {
       <p className="text-xl sm:text-2xl text-gray-700 mb-8 font-medium">
         Aziah&apos;s Pokemon Adventure!
       </p>
-      <button
-        onClick={() => router.push('/encounter')}
-        className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-12 py-6 shadow-xl hover:scale-110 transition-transform min-h-[64px]"
+      <Link
+        href="/encounter"
+        className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-12 py-6 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center"
       >
         Let&apos;s Play!
-      </button>
+      </Link>
     </main>
   )
 }
