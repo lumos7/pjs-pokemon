@@ -15,7 +15,7 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName,
     if (!imageUrl || !pokemonName) return
     const a = document.createElement('a')
     a.href = imageUrl
-    a.download = `aziah-meets-${pokemonName.toLowerCase()}.png`
+    a.download = `pj-meets-${pokemonName.toLowerCase()}.png`
     a.click()
   }
 
@@ -59,7 +59,7 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName,
 
           <img
             src={imageUrl}
-            alt={`Aziah meets ${pokemonName}`}
+            alt={`PJ meets ${pokemonName}`}
             className="rounded-2xl shadow-lg max-w-full w-full"
           />
 

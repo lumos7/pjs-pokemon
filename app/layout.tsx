@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: "PJ's Pokemon",
-  description: "Aziah's Pokemon Adventure",
+  description: "PJ's Pokemon Adventure",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

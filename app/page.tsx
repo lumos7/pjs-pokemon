@@ -33,7 +33,7 @@ export default function Home() {
         PJ&apos;s Pokemon
       </h1>
       <p className="text-xl sm:text-2xl text-gray-700 mb-6 font-medium">
-        Aziah&apos;s Pokemon Adventure!
+        PJ&apos;s Pokemon Adventure!
       </p>
 
       {/* Character lineup — Pokemon + PJ standing together */}

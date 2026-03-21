@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     // Caption — mixed case, Bangers, 40% smaller (31000 vs old 52000)
     const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
-    const captionText = `Aziah meets ${displayName}!`
+    const captionText = `PJ meets ${displayName}!`
 
     const layers: sharp.OverlayOptions[] = [
       { input: resizedPokemon, top: pokemonTop, left: pokemonLeft },
