@@ -39,7 +39,6 @@ export default function QuizPage() {
   const [savedState, setSavedState] = useState<QuizState | null>(null)
 
   const jingleRef = useRef<HTMLAudioElement | null>(null)
-  const [imgLoaded, setImgLoaded] = useState(false)
 
   // Fetch pokemon list
   useEffect(() => {
@@ -115,7 +114,6 @@ export default function QuizPage() {
     setDisabledIds(new Set())
     setSelectedCorrect(false)
     setShowNext(false)
-    setImgLoaded(false)
 
     // Play jingle
     if (jingleRef.current) {
@@ -298,6 +296,9 @@ export default function QuizPage() {
   }
 
   // Game screen
+  if (currentPokemon) {
+    console.log('[quiz] Rendering pokemon:', currentPokemon.id, currentPokemon.name, '| URL:', getOfficialArtworkUrl(currentPokemon.id), '| revealed:', revealed)
+  }
   const lives = 2 - strikes
 
   return (
@@ -322,18 +323,15 @@ export default function QuizPage() {
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                key={currentPokemon.id}
                 src={getOfficialArtworkUrl(currentPokemon.id)}
                 alt={revealed ? capitalize(currentPokemon.name) : 'Mystery Pokémon'}
                 className="w-full h-full object-contain drop-shadow-2xl"
                 style={{
                   filter: revealed ? 'brightness(1)' : 'brightness(0)',
                   transition: 'filter 0.5s ease-in-out',
-                  opacity: imgLoaded || revealed ? 1 : 0,
                 }}
-                onLoad={() => {
-                  console.log('[quiz] Image loaded:', getOfficialArtworkUrl(currentPokemon.id))
-                  setImgLoaded(true)
-                }}
+                onLoad={() => console.log('[quiz] Image loaded:', getOfficialArtworkUrl(currentPokemon.id))}
                 onError={() => console.error('[quiz] Image FAILED to load:', getOfficialArtworkUrl(currentPokemon.id))}
               />
               {!revealed && (
