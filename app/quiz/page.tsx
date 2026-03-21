@@ -39,6 +39,7 @@ export default function QuizPage() {
   const [savedState, setSavedState] = useState<QuizState | null>(null)
 
   const jingleRef = useRef<HTMLAudioElement | null>(null)
+  const [imgLoaded, setImgLoaded] = useState(false)
 
   // Fetch pokemon list
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function QuizPage() {
     setDisabledIds(new Set())
     setSelectedCorrect(false)
     setShowNext(false)
+    setImgLoaded(false)
 
     // Play jingle
     if (jingleRef.current) {
@@ -315,8 +317,7 @@ export default function QuizPage() {
       {/* Main content */}
       <div className="relative z-10 flex flex-col items-center px-4 mt-4 sm:mt-8">
         {/* Silhouette area */}
-        <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center mb-6"
-          style={{ backgroundColor: revealed ? 'transparent' : '#000', borderRadius: '1rem' }}>
+        <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center mb-6">
           {currentPokemon && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -327,11 +328,17 @@ export default function QuizPage() {
                 style={{
                   filter: revealed ? 'brightness(1)' : 'brightness(0)',
                   transition: 'filter 0.5s ease-in-out',
+                  opacity: imgLoaded || revealed ? 1 : 0,
                 }}
+                onLoad={() => {
+                  console.log('[quiz] Image loaded:', getOfficialArtworkUrl(currentPokemon.id))
+                  setImgLoaded(true)
+                }}
+                onError={() => console.error('[quiz] Image FAILED to load:', getOfficialArtworkUrl(currentPokemon.id))}
               />
               {!revealed && (
-                <span className="absolute -right-12 sm:-right-16 top-1/2 -translate-y-1/2 text-8xl sm:text-9xl font-bold text-[#FFCB05] opacity-80 select-none"
-                  style={{ fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '3px #2A75BB' }}>
+                <span className="absolute top-1/2 -translate-y-1/2 text-8xl sm:text-9xl font-bold text-[#FFCB05] opacity-80 select-none"
+                  style={{ left: '100%', marginLeft: '20px', fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '3px #2A75BB' }}>
                   ?
                 </span>
               )}
