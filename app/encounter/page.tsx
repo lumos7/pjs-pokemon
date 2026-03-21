@@ -3,19 +3,12 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { scenes } from '@/lib/scenes'
-import { Pokemon, getCryUrl } from '@/lib/pokemon'
+import { Pokemon, getCryUrl, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
 import { SceneSelector } from '@/components/SceneSelector'
 import { PokemonSelector } from '@/components/PokemonSelector'
 import { SurpriseButton } from '@/components/SurpriseButton'
 import { EncounterCanvas } from '@/components/EncounterCanvas'
-
-type Region = 'kanto' | 'johto' | 'both'
-
-const REGIONS: { value: Region; label: string }[] = [
-  { value: 'both',  label: 'Both'  },
-  { value: 'kanto', label: 'Kanto' },
-  { value: 'johto', label: 'Johto' },
-]
+import { GenFilter } from '@/components/GenFilter'
 
 function playCry(pokemonId: number) {
   const cry = new Audio(getCryUrl(pokemonId))
@@ -45,16 +38,16 @@ async function playTTS(pokemonName: string, pokemonId: number | null = null, nam
 function EncounterContent() {
   const searchParams = useSearchParams()
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([])
-  const [region, setRegion] = useState<Region>('both')
+  const [selectedGens, setSelectedGens] = useState<number[]>(() => loadSelectedGens())
   const [selectedScene, setSelectedScene] = useState<string | null>(null)
   const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null)
   const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [loadingPokemon, setLoadingPokemon] = useState(true)
 
-  // Fetch all 251 Kanto + Johto Pokemon on mount
+  // Fetch all 1025 Pokemon on mount
   useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=251&offset=0')
+    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0')
       .then((r) => {
         if (!r.ok) throw new Error(`PokeAPI error: ${r.status}`)
         return r.json()
@@ -94,17 +87,18 @@ function EncounterContent() {
     playTTS(selectedPokemon.name, selectedPokemon.id)
   }, [compositeImageUrl, selectedPokemon])
 
+  const handleGensChange = (ids: number[]) => {
+    setSelectedGens(ids)
+    saveSelectedGens(ids)
+  }
+
   const handleSelectPokemon = (p: Pokemon) => {
     setSelectedPokemon(p)
     // Clear generated result so stale image isn't shown and TTS doesn't fire
     if (compositeImageUrl) setCompositeImageUrl(null)
   }
 
-  const filteredPokemon = pokemonList.filter((p) => {
-    if (region === 'kanto') return p.id <= 151
-    if (region === 'johto') return p.id >= 152 && p.id <= 251
-    return true
-  })
+  const filteredPokemon = filterByGens(pokemonList, selectedGens)
 
   const generate = async (sceneId: string, pokemon: Pokemon) => {
     setIsGenerating(true)
@@ -162,23 +156,7 @@ function EncounterContent() {
       <section>
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <h2 className="text-lg font-bold text-gray-800 mr-1">Choose a Pokemon</h2>
-          {/* Region filter */}
-          <div className="flex gap-1 bg-amber-50 border border-amber-200 rounded-full p-1">
-            {REGIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setRegion(value)}
-                className={`px-3 py-1 rounded-full text-sm font-bold transition-colors min-h-[36px] ${
-                  region === value
-                    ? 'bg-[#CC0000] text-white shadow'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <GenFilter selectedGens={selectedGens} onChange={handleGensChange} />
           {/* Generate + Surprise Me — right side of same row */}
           <div className="flex gap-2 ml-auto">
             <button

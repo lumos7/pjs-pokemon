@@ -7,23 +7,33 @@ const DEFAULT_VOLUME = 0.15
 type ThemeState = 'idle' | 'playing' | 'paused'
 
 export function MusicPlayer() {
-  // Shuffle queue — guarantees every track plays once before repeats
+  // Shuffle queue — built once on mount, index-based advancement
   const queueRef     = useRef<string[]>([])
-  const lastTrackRef = useRef<string | null>(null)
+  const queueIdxRef  = useRef(0)
 
-  function nextFromQueue(): string {
-    if (queueRef.current.length === 0) {
-      // Re-shuffle; if only one track, no swap needed
-      const shuffled = fisherYates(MUSIC_TRACKS)
-      // Ensure reshuffled queue doesn't start with the track that just played
-      if (shuffled.length > 1 && shuffled[0] === lastTrackRef.current) {
+  function buildQueue() {
+    const shuffled = fisherYates(MUSIC_TRACKS)
+    // If rebuilding, ensure first track of new queue isn't the last played
+    if (queueRef.current.length > 0) {
+      const lastPlayed = queueRef.current[queueIdxRef.current - 1]
+      if (shuffled.length > 1 && shuffled[0] === lastPlayed) {
         const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1))
         ;[shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]]
       }
-      queueRef.current = shuffled
     }
-    const track = queueRef.current.shift()!
-    lastTrackRef.current = track
+    queueRef.current = shuffled
+    queueIdxRef.current = 0
+    console.log('[music] Shuffled queue:', shuffled.map((t, i) => `${i + 1}. ${t}`).join(', '))
+  }
+
+  function nextFromQueue(): string {
+    // Build queue if empty or exhausted
+    if (queueRef.current.length === 0 || queueIdxRef.current >= queueRef.current.length) {
+      buildQueue()
+    }
+    const track = queueRef.current[queueIdxRef.current]
+    queueIdxRef.current++
+    console.log(`[music] Now playing: "${track}" (${queueIdxRef.current}/${queueRef.current.length})`)
     return track
   }
 
@@ -85,14 +95,26 @@ export function MusicPlayer() {
 
     const source = ctx.createBufferSource()
     source.buffer  = audioBuf
-    source.loop    = true
+    source.loop    = false  // no loop — auto-advance via onended
     source.connect(gainRef.current!)
+
+    // When this track ends, play the next one from the queue
+    source.onended = () => {
+      if (loadTokenRef.current !== token) return // skip if user already skipped
+      if (themeActiveRef.current) return // don't auto-advance during theme
+      const next = nextFromQueue()
+      const nextToken = ++loadTokenRef.current
+      startBgTrack(next, nextToken).catch(() => {})
+    }
+
     source.start()
     sourceRef.current = source
     hasStartedRef.current = true
   }
 
   useEffect(() => {
+    // Build the initial queue on mount
+    buildQueue()
     const track = nextFromQueue()
 
     const unlock = () => {

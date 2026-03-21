@@ -2,15 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pokemon } from '@/lib/pokemon'
+import { Pokemon, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
 import { PokemonCard } from '@/components/PokemonCard'
-
-type Region = 'kanto' | 'johto' | 'both'
-const REGIONS: { value: Region; label: string }[] = [
-  { value: 'both',  label: 'Both'  },
-  { value: 'kanto', label: 'Kanto' },
-  { value: 'johto', label: 'Johto' },
-]
+import { GenFilter } from '@/components/GenFilter'
 
 async function speakName(pokemon: Pokemon) {
   try {
@@ -29,12 +23,12 @@ async function speakName(pokemon: Pokemon) {
 export default function PokemonListPage() {
   const router = useRouter()
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([])
-  const [region, setRegion] = useState<Region>('both')
+  const [selectedGens, setSelectedGens] = useState<number[]>(() => loadSelectedGens())
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=251&offset=0')
+    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0')
       .then(r => r.json())
       .then((data: { results: { name: string; url: string }[] }) => {
         const list: Pokemon[] = data.results.map((p) => {
@@ -48,13 +42,15 @@ export default function PokemonListPage() {
       .catch(() => setLoading(false))
   }, [])
 
+  const handleGensChange = (ids: number[]) => {
+    setSelectedGens(ids)
+    saveSelectedGens(ids)
+  }
+
   const filtered = pokemonList.filter((p) => {
-    const inRegion =
-      region === 'kanto' ? p.id <= 151 :
-      region === 'johto' ? p.id >= 152 && p.id <= 251 :
-      true
+    const inGens = filterByGens([p], selectedGens).length > 0
     const inSearch = p.name.toLowerCase().includes(search.toLowerCase())
-    return inRegion && inSearch
+    return inGens && inSearch
   })
 
   const handleCardClick = (p: Pokemon) => {
@@ -79,20 +75,7 @@ export default function PokemonListPage() {
           onChange={e => setSearch(e.target.value)}
           className="flex-1 min-w-[140px] rounded-full px-4 py-2 border-2 border-amber-300 focus:border-[#FFCB05] focus:outline-none text-sm"
         />
-        <div className="flex gap-1 bg-amber-50 border border-amber-200 rounded-full p-1">
-          {REGIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRegion(value)}
-              className={`px-3 py-1 rounded-full text-sm font-bold transition-colors min-h-[36px] ${
-                region === value ? 'bg-[#CC0000] text-white shadow' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <GenFilter selectedGens={selectedGens} onChange={handleGensChange} />
       </div>
 
       {loading ? (

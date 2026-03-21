@@ -1,30 +1,16 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Pokemon, getOfficialArtworkUrl, getCryUrl } from '@/lib/pokemon'
+import { Pokemon, getOfficialArtworkUrl, getCryUrl, GENERATIONS, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
 import { fisherYates } from '@/lib/scenes'
-
-type Region = 'kanto' | 'johto' | 'both'
-
-const REGIONS: { value: Region; label: string }[] = [
-  { value: 'kanto', label: 'Kanto' },
-  { value: 'johto', label: 'Johto' },
-  { value: 'both',  label: 'Both'  },
-]
 
 const STORAGE_KEY = 'pjs-quiz-state'
 
 interface QuizState {
   score: number
   round: number
-  region: Region
+  selectedGens: number[]
   usedIds: number[]
-}
-
-function filterByRegion(list: Pokemon[], region: Region): Pokemon[] {
-  if (region === 'kanto') return list.filter(p => p.id >= 1 && p.id <= 151)
-  if (region === 'johto') return list.filter(p => p.id >= 152 && p.id <= 251)
-  return list
 }
 
 function capitalize(s: string): string {
@@ -33,7 +19,7 @@ function capitalize(s: string): string {
 
 export default function QuizPage() {
   const [allPokemon, setAllPokemon] = useState<Pokemon[]>([])
-  const [region, setRegion] = useState<Region>('both')
+  const [selectedGens, setSelectedGens] = useState<number[]>(() => loadSelectedGens())
   const [gameStarted, setGameStarted] = useState(false)
   const [score, setScore] = useState(0)
   const [round, setRound] = useState(0)
@@ -56,7 +42,7 @@ export default function QuizPage() {
 
   // Fetch pokemon list
   useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=251&offset=0')
+    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0')
       .then(r => r.json())
       .then(data => {
         const list: Pokemon[] = data.results.map((p: { name: string; url: string }) => {
@@ -87,10 +73,28 @@ export default function QuizPage() {
   useEffect(() => {
     if (!gameStarted) return
     try {
-      const state: QuizState = { score, round, region, usedIds }
+      const state: QuizState = { score, round, selectedGens, usedIds }
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     } catch {}
-  }, [score, round, region, usedIds, gameStarted])
+  }, [score, round, selectedGens, usedIds, gameStarted])
+
+  const handleGensChange = (genId: number) => {
+    setSelectedGens(prev => {
+      const next = prev.includes(genId)
+        ? prev.filter(g => g !== genId)
+        : [...prev, genId]
+      if (next.length === 0) return prev
+      saveSelectedGens(next)
+      return next
+    })
+  }
+
+  const toggleAllGens = () => {
+    const allIds = GENERATIONS.map(g => g.id)
+    const next = selectedGens.length === GENERATIONS.length ? [1] : allIds
+    setSelectedGens(next)
+    saveSelectedGens(next)
+  }
 
   const pickRound = useCallback((pool: Pokemon[], used: number[]) => {
     const available = pool.filter(p => !used.includes(p.id))
@@ -125,15 +129,15 @@ export default function QuizPage() {
   }, [])
 
   const startGame = useCallback((resumeState?: QuizState) => {
-    const r = resumeState?.region ?? region
-    const pool = filterByRegion(allPokemon, r)
+    const gens = resumeState?.selectedGens ?? selectedGens
+    const pool = filterByGens(allPokemon, gens)
     if (pool.length < 4) return
 
     const s = resumeState?.score ?? 0
     const rd = resumeState?.round ?? 0
     const used = resumeState?.usedIds ?? []
 
-    setRegion(r)
+    setSelectedGens(gens)
     setScore(s)
     setRound(rd)
     setUsedIds(used)
@@ -141,31 +145,27 @@ export default function QuizPage() {
     setShowResumeModal(false)
 
     pickRound(pool, used)
-  }, [allPokemon, region, pickRound])
+  }, [allPokemon, selectedGens, pickRound])
 
   const handleAnswer = useCallback((chosen: Pokemon) => {
     if (!currentPokemon || revealed) return
 
     if (chosen.id === currentPokemon.id) {
-      // Correct
       setSelectedCorrect(true)
       setRevealed(true)
       setShowNext(true)
       setScore(prev => prev + 1)
       setUsedIds(prev => [...prev, currentPokemon.id])
 
-      // Play cry
       const cry = new Audio(getCryUrl(currentPokemon.id))
       cry.volume = 0.33
       cry.play().catch(() => {})
     } else {
-      // Wrong
       const newStrikes = strikes + 1
       setStrikes(newStrikes)
       setDisabledIds(prev => { const s = new Set(prev); s.add(chosen.id); return s })
 
       if (newStrikes >= 2) {
-        // Game over for this round
         setRevealed(true)
         setShowNext(true)
         setUsedIds(prev => [...prev, currentPokemon.id])
@@ -174,11 +174,11 @@ export default function QuizPage() {
   }, [currentPokemon, revealed, strikes])
 
   const handleNext = useCallback(() => {
-    const pool = filterByRegion(allPokemon, region)
+    const pool = filterByGens(allPokemon, selectedGens)
     const newRound = round + 1
     setRound(newRound)
     pickRound(pool, usedIds)
-  }, [allPokemon, region, round, usedIds, pickRound])
+  }, [allPokemon, selectedGens, round, usedIds, pickRound])
 
   const handleResume = useCallback(() => {
     if (savedState) startGame(savedState)
@@ -190,44 +190,57 @@ export default function QuizPage() {
     setShowResumeModal(false)
   }, [])
 
+  // Diagonal rays background
+  const rays = (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(8)].map((_, i) => (
+        <div key={i} className="absolute origin-center"
+          style={{
+            top: '50%', left: '50%',
+            width: '200vmax', height: '60px',
+            background: 'rgba(255,255,255,0.07)',
+            transform: `translate(-50%, -50%) rotate(${i * 22.5}deg)`,
+          }} />
+      ))}
+    </div>
+  )
+
+  const bgStyle = { background: 'linear-gradient(135deg, #CC0000 0%, #ff1a1a 50%, #CC0000 100%)' }
+
   // Landing screen
   if (!gameStarted && !showResumeModal) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #CC0000 0%, #ff1a1a 50%, #CC0000 100%)' }}>
-        {/* Diagonal rays */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="absolute origin-center"
-              style={{
-                top: '50%', left: '50%',
-                width: '200vmax', height: '60px',
-                background: 'rgba(255,255,255,0.07)',
-                transform: `translate(-50%, -50%) rotate(${i * 22.5}deg)`,
-              }} />
-          ))}
-        </div>
-
+      <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden" style={bgStyle}>
+        {rays}
         <div className="relative z-10 text-center px-4">
           <h1 className="text-5xl sm:text-7xl text-[#FFCB05] mb-2 drop-shadow-lg"
             style={{ fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '2px #2A75BB', letterSpacing: '0.04em' }}>
             Who&apos;s That Pokémon?
           </h1>
-          <p className="text-white/80 text-lg mb-8">Test your Pokémon knowledge!</p>
+          <p className="text-white/80 text-lg mb-6">Test your Pokémon knowledge!</p>
 
-          {/* Region selector */}
-          <div className="flex gap-2 justify-center mb-8">
-            {REGIONS.map(r => (
-              <button key={r.value}
-                onClick={() => setRegion(r.value)}
-                className={`px-5 py-2 rounded-full font-bold text-sm transition-all ${
-                  region === r.value
-                    ? 'bg-[#FFCB05] text-gray-900 scale-105'
-                    : 'bg-white/20 text-white hover:bg-white/30'
-                }`}>
-                {r.label}
+          {/* Generation checkboxes */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-8 max-w-sm mx-auto">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white font-bold text-sm">Select Generations</span>
+              <button onClick={toggleAllGens}
+                className="text-[#FFCB05] text-xs font-bold hover:underline">
+                {selectedGens.length === GENERATIONS.length ? 'Deselect All' : 'Select All'}
               </button>
-            ))}
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {GENERATIONS.map(gen => (
+                <label key={gen.id} className="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded-lg hover:bg-white/10">
+                  <input
+                    type="checkbox"
+                    checked={selectedGens.includes(gen.id)}
+                    onChange={() => handleGensChange(gen.id)}
+                    className="accent-[#FFCB05] w-3.5 h-3.5"
+                  />
+                  <span className="text-white text-xs">Gen {gen.id}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <button
@@ -244,19 +257,8 @@ export default function QuizPage() {
   // Resume modal
   if (showResumeModal && savedState) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #CC0000 0%, #ff1a1a 50%, #CC0000 100%)' }}>
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="absolute origin-center"
-              style={{
-                top: '50%', left: '50%',
-                width: '200vmax', height: '60px',
-                background: 'rgba(255,255,255,0.07)',
-                transform: `translate(-50%, -50%) rotate(${i * 22.5}deg)`,
-              }} />
-          ))}
-        </div>
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={bgStyle}>
+        {rays}
         <div className="relative z-10 bg-white rounded-2xl p-8 mx-4 max-w-md w-full text-center shadow-2xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h2>
           <p className="text-gray-600 mb-6">You had <span className="font-bold text-[#CC0000]">{savedState.score}</span> points.</p>
@@ -279,20 +281,8 @@ export default function QuizPage() {
   const lives = 2 - strikes
 
   return (
-    <div className="min-h-screen relative overflow-hidden pb-32"
-      style={{ background: 'linear-gradient(135deg, #CC0000 0%, #ff1a1a 50%, #CC0000 100%)' }}>
-      {/* Diagonal rays */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="absolute origin-center"
-            style={{
-              top: '50%', left: '50%',
-              width: '200vmax', height: '60px',
-              background: 'rgba(255,255,255,0.07)',
-              transform: `translate(-50%, -50%) rotate(${i * 22.5}deg)`,
-            }} />
-        ))}
-      </div>
+    <div className="min-h-screen relative overflow-hidden pb-32" style={bgStyle}>
+      {rays}
 
       {/* HUD */}
       <div className="relative z-10 flex justify-between items-center px-4 pt-4">
@@ -320,7 +310,6 @@ export default function QuizPage() {
                   transition: 'filter 0.5s ease-in-out',
                 }}
               />
-              {/* Yellow question mark */}
               {!revealed && (
                 <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 text-8xl sm:text-9xl font-bold text-[#FFCB05] opacity-80 select-none"
                   style={{ fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '3px #2A75BB' }}>
