@@ -7,7 +7,8 @@ const LINKS = [
   { href: '/',             label: '🏠 Home'      },
   { href: '/encounter',    label: '🗺️ Adventure'  },
   { href: '/pokemon-list', label: '📖 Pokédex'   },
-  { href: '/quiz',         label: '🔍 Quiz'      },
+  { href: '/quiz',                label: '🔍 Quiz'      },
+  { href: '/pokemon-of-the-day', label: '🌟 Daily'     },
 ]
 
 export function NavBar() {

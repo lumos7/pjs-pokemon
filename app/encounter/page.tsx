@@ -44,6 +44,7 @@ function EncounterContent() {
   const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [loadingPokemon, setLoadingPokemon] = useState(true)
+  const [flashActive, setFlashActive] = useState(false)
 
   // Fetch all 1025 Pokemon on mount
   useEffect(() => {
@@ -139,14 +140,47 @@ function EncounterContent() {
     generate(randomScene.id, randomPokemon)
   }
 
+  const handleRandomEncounter = () => {
+    if (filteredPokemon.length === 0) return
+    // Flash white
+    setFlashActive(true)
+    setTimeout(() => setFlashActive(false), 200)
+    // Pick random scene + pokemon
+    const randomScene = scenes[Math.floor(Math.random() * scenes.length)]
+    const randomPokemon = filteredPokemon[Math.floor(Math.random() * filteredPokemon.length)]
+    // Play cry immediately
+    playCry(randomPokemon.id)
+    // Set selections and generate
+    setSelectedScene(randomScene.id)
+    setSelectedPokemon(randomPokemon)
+    generate(randomScene.id, randomPokemon)
+  }
+
   console.log('[state] scene:', selectedScene, '| pokemon:', selectedPokemon?.name)
 
   return (
-    <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-6">
+    <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-6 relative">
+      {/* White flash overlay */}
+      {flashActive && (
+        <div className="fixed inset-0 z-50 bg-white pointer-events-none animate-pulse" />
+      )}
+
       <h1 className="text-3xl sm:text-4xl font-extrabold text-center text-[#CC0000]"
           style={{ textShadow: '2px 2px 0 #FFCB05' }}>
         Create Your Adventure!
       </h1>
+
+      {/* Random Encounter button */}
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={handleRandomEncounter}
+          disabled={isGenerating || filteredPokemon.length === 0}
+          className="bg-gradient-to-r from-purple-600 to-indigo-500 text-white font-bold text-lg rounded-full px-8 py-4 min-h-[56px] shadow-lg hover:scale-105 active:scale-95 transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          ⚡ Random Encounter!
+        </button>
+      </div>
 
       <section>
         <h2 className="text-lg font-bold text-gray-800 mb-2">Pick a Scene</h2>
@@ -188,6 +222,7 @@ function EncounterContent() {
       <EncounterCanvas
         imageUrl={compositeImageUrl}
         pokemonName={selectedPokemon?.name ?? null}
+        pokemonId={selectedPokemon?.id ?? null}
         isLoading={isGenerating}
         onSpeakName={selectedPokemon ? () => playTTS(selectedPokemon.name, selectedPokemon.id, true) : undefined}
         onClose={() => setCompositeImageUrl(null)}

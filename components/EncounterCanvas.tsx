@@ -1,16 +1,28 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { getOfficialArtworkUrl } from '@/lib/pokemon'
 
 interface EncounterCanvasProps {
   imageUrl: string | null
   pokemonName: string | null
+  pokemonId: number | null
   isLoading: boolean
   onSpeakName?: () => void
   onClose?: () => void
 }
 
-export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName, onClose }: EncounterCanvasProps) {
+const AZIAH_HEIGHT_M = 1.0
+const MAX_BAR_HEIGHT = 160 // px max for the taller one
+
+interface SizeData {
+  pokemonHeightM: number
+  caption: string
+}
+
+export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, onSpeakName, onClose }: EncounterCanvasProps) {
+  const [sizeData, setSizeData] = useState<SizeData | null>(null)
+
   const handleDownload = () => {
     if (!imageUrl || !pokemonName) return
     const a = document.createElement('a')
@@ -20,6 +32,30 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName,
   }
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+  // Fetch pokemon height for size comparison
+  useEffect(() => {
+    if (!pokemonId || !pokemonName || !imageUrl) {
+      setSizeData(null)
+      return
+    }
+    let cancelled = false
+    fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        const heightM = data.height / 10 // API returns decimetres
+        const name = capitalize(pokemonName!)
+        const ratio = heightM / AZIAH_HEIGHT_M
+        let caption: string
+        if (ratio > 2) caption = `Whoa, ${name} is huge!`
+        else if (ratio >= 0.5) caption = `${name} is about PJ's size!`
+        else caption = `${name} is tiny!`
+        setSizeData({ pokemonHeightM: heightM, caption })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [pokemonId, pokemonName, imageUrl])
 
   // Close on Escape key
   useEffect(() => {
@@ -41,6 +77,15 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName,
 
   // Modal overlay — shown when image is ready
   if (imageUrl) {
+    // Size comparison scaling
+    let aziahPx = MAX_BAR_HEIGHT
+    let pokemonPx = MAX_BAR_HEIGHT
+    if (sizeData) {
+      const maxHeight = Math.max(AZIAH_HEIGHT_M, sizeData.pokemonHeightM)
+      aziahPx = (AZIAH_HEIGHT_M / maxHeight) * MAX_BAR_HEIGHT
+      pokemonPx = (sizeData.pokemonHeightM / maxHeight) * MAX_BAR_HEIGHT
+    }
+
     return (
       <div
         className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -81,6 +126,37 @@ export function EncounterCanvas({ imageUrl, pokemonName, isLoading, onSpeakName,
               Download Image
             </button>
           </div>
+
+          {/* Size comparison */}
+          {sizeData && pokemonId && pokemonName && (
+            <div className="w-full bg-amber-50 rounded-2xl border border-amber-100 p-4">
+              <div className="flex items-end justify-center gap-8">
+                {/* PJ */}
+                <div className="flex flex-col items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/images/PokeMaster PJ.png"
+                    alt="PJ"
+                    style={{ height: `${aziahPx}px` }}
+                    className="object-contain"
+                  />
+                  <span className="text-xs font-bold text-gray-700 mt-1">PJ: {AZIAH_HEIGHT_M}m</span>
+                </div>
+                {/* Pokemon */}
+                <div className="flex flex-col items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getOfficialArtworkUrl(pokemonId)}
+                    alt={capitalize(pokemonName)}
+                    style={{ height: `${pokemonPx}px` }}
+                    className="object-contain"
+                  />
+                  <span className="text-xs font-bold text-gray-700 mt-1">{capitalize(pokemonName)}: {sizeData.pokemonHeightM}m</span>
+                </div>
+              </div>
+              <p className="text-center text-sm font-bold text-gray-600 mt-2">{sizeData.caption}</p>
+            </div>
+          )}
         </div>
       </div>
     )
