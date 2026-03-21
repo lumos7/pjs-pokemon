@@ -147,6 +147,26 @@ export default function QuizPage() {
     pickRound(pool, used)
   }, [allPokemon, selectedGens, pickRound])
 
+  const speakThenCry = useCallback((pokemon: Pokemon) => {
+    fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pokemonName: pokemon.name, nameOnly: true }),
+    })
+      .then(res => res.ok ? res.blob() : null)
+      .then(blob => {
+        if (!blob) return
+        const audio = new Audio(URL.createObjectURL(blob))
+        audio.addEventListener('ended', () => {
+          const cry = new Audio(getCryUrl(pokemon.id))
+          cry.volume = 0.33
+          cry.play().catch(() => {})
+        }, { once: true })
+        audio.play().catch(() => {})
+      })
+      .catch(() => {})
+  }, [])
+
   const handleAnswer = useCallback((chosen: Pokemon) => {
     if (!currentPokemon || revealed) return
 
@@ -156,10 +176,7 @@ export default function QuizPage() {
       setShowNext(true)
       setScore(prev => prev + 1)
       setUsedIds(prev => [...prev, currentPokemon.id])
-
-      const cry = new Audio(getCryUrl(currentPokemon.id))
-      cry.volume = 0.33
-      cry.play().catch(() => {})
+      speakThenCry(currentPokemon)
     } else {
       const newStrikes = strikes + 1
       setStrikes(newStrikes)
@@ -169,9 +186,10 @@ export default function QuizPage() {
         setRevealed(true)
         setShowNext(true)
         setUsedIds(prev => [...prev, currentPokemon.id])
+        speakThenCry(currentPokemon)
       }
     }
-  }, [currentPokemon, revealed, strikes])
+  }, [currentPokemon, revealed, strikes, speakThenCry])
 
   const handleNext = useCallback(() => {
     const pool = filterByGens(allPokemon, selectedGens)
@@ -297,7 +315,8 @@ export default function QuizPage() {
       {/* Main content */}
       <div className="relative z-10 flex flex-col items-center px-4 mt-4 sm:mt-8">
         {/* Silhouette area */}
-        <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center mb-6">
+        <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center mb-6"
+          style={{ backgroundColor: revealed ? 'transparent' : '#000', borderRadius: '1rem' }}>
           {currentPokemon && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -306,12 +325,12 @@ export default function QuizPage() {
                 alt={revealed ? capitalize(currentPokemon.name) : 'Mystery Pokémon'}
                 className="w-full h-full object-contain drop-shadow-2xl"
                 style={{
-                  filter: revealed ? 'none' : 'brightness(0)',
+                  filter: revealed ? 'brightness(1)' : 'brightness(0)',
                   transition: 'filter 0.5s ease-in-out',
                 }}
               />
               {!revealed && (
-                <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 text-8xl sm:text-9xl font-bold text-[#FFCB05] opacity-80 select-none"
+                <span className="absolute -right-12 sm:-right-16 top-1/2 -translate-y-1/2 text-8xl sm:text-9xl font-bold text-[#FFCB05] opacity-80 select-none"
                   style={{ fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '3px #2A75BB' }}>
                   ?
                 </span>
