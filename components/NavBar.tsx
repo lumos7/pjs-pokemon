@@ -8,26 +8,29 @@ const LINKS = [
   { href: '/encounter',    label: '🗺️ Adventure'  },
   { href: '/pokemon-list', label: '📖 Pokédex'   },
   { href: '/quiz',                label: '🔍 Quiz'      },
-  { href: '/pokemon-of-the-day', label: '🌟 Daily'     },
+  { href: '/pokemon-of-the-day', label: '🌟 Pokémon Of The Day' },
 ]
 
 export function NavBar() {
   const pathname = usePathname()
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-[#CC0000] border-b-4 border-[#FFCB05] shadow-md">
+    <nav
+      className="sticky top-0 z-50 w-full border-b-4 border-[#FFCB05] shadow-md"
+      style={{ backgroundColor: '#CC0000', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+    >
       <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-12">
         {/* Logo */}
         <Link
           href="/"
-          className="text-[#FFCB05] font-bold text-lg tracking-wide leading-none hover:opacity-80 transition-opacity"
+          className="text-[#FFCB05] font-bold text-lg tracking-wide leading-none hover:opacity-80 transition-opacity flex-shrink-0"
           style={{ fontFamily: "'Bangers', 'Impact', cursive", letterSpacing: '0.05em', WebkitTextStroke: '0.5px #2A75BB' }}
         >
           PJ&apos;s Pokemon
         </Link>
 
         {/* Nav links */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
           {LINKS.map(({ href, label }) => {
             const active = pathname === href
             return (

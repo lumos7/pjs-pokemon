@@ -46,10 +46,9 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
         if (cancelled) return
         const heightM = data.height / 10 // API returns decimetres
         const name = capitalize(pokemonName!)
-        const ratio = heightM / AZIAH_HEIGHT_M
         let caption: string
-        if (ratio > 2) caption = `Whoa, ${name} is huge!`
-        else if (ratio >= 0.5) caption = `${name} is about PJ's size!`
+        if (heightM > 2.0) caption = `Whoa, ${name} is huge!`
+        else if (heightM >= 0.8) caption = `${name} is about PJ's size!`
         else caption = `${name} is tiny!`
         setSizeData({ pokemonHeightM: heightM, caption })
       })

@@ -18,7 +18,7 @@ export default function Home() {
   const right = STARTER_POKEMON.slice(3)       // Squirtle, Pikachu, Eevee
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+    <main className="flex flex-col items-center justify-center min-h-screen p-4 text-center overflow-hidden">
       <h1
         className="text-5xl sm:text-7xl mb-1"
         style={{
@@ -37,7 +37,7 @@ export default function Home() {
       </p>
 
       {/* Character lineup — Pokemon + PJ standing together */}
-      <div className="flex items-end justify-center gap-2 sm:gap-4 mb-8 px-2">
+      <div className="flex items-end justify-center gap-2 sm:gap-4 mb-8 px-2 max-w-full">
         {/* Left Pokemon */}
         {left.map((p) => (
           <img
@@ -46,7 +46,7 @@ export default function Home() {
             alt={p.name}
             width={80}
             height={80}
-            className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md flex-shrink-0"
           />
         ))}
 
@@ -56,7 +56,7 @@ export default function Home() {
           alt="PokeMaster PJ"
           width={200}
           height={200}
-          className="w-36 h-36 sm:w-48 sm:h-48 object-contain drop-shadow-lg"
+          className="w-36 h-36 sm:w-48 sm:h-48 object-contain drop-shadow-lg flex-shrink-0"
         />
 
         {/* Right Pokemon */}
@@ -67,23 +67,35 @@ export default function Home() {
             alt={p.name}
             width={80}
             height={80}
-            className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md flex-shrink-0"
           />
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl">
         <Link
           href="/encounter"
-          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-2xl font-bold rounded-full px-10 py-5 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center justify-center"
+          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
-          Let&apos;s Play!
+          🗺️ Let&apos;s Play!
         </Link>
         <Link
           href="/pokemon-list"
-          className="bg-[#FFCB05] text-gray-900 text-2xl font-bold rounded-full px-10 py-5 shadow-xl hover:scale-110 transition-transform min-h-[64px] inline-flex items-center justify-center"
+          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
-          Pokédex 📖
+          📖 Pokédex
+        </Link>
+        <Link
+          href="/quiz"
+          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
+        >
+          🔍 Quiz
+        </Link>
+        <Link
+          href="/pokemon-of-the-day"
+          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
+        >
+          🌟 Daily
         </Link>
       </div>
     </main>
