@@ -95,7 +95,7 @@ export default function Home() {
           href="/pokemon-of-the-day"
           className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
-          🌟 Daily
+          🌟 Pokémon Of The Day
         </Link>
       </div>
     </main>
