@@ -10,6 +10,10 @@ interface EncounterCanvasProps {
   isLoading: boolean
   onSpeakName?: () => void
   onClose?: () => void
+  /** Queue auto-play: keep the modal open on backdrop/Escape (only × closes). */
+  lockOpen?: boolean
+  /** Label/emoji for the speak button (defaults to 🔊 name). */
+  speakLabel?: string
 }
 
 const AZIAH_HEIGHT_M = 1.0
@@ -20,7 +24,7 @@ interface SizeData {
   caption: string
 }
 
-export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, onSpeakName, onClose }: EncounterCanvasProps) {
+export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, onSpeakName, onClose, lockOpen = false, speakLabel }: EncounterCanvasProps) {
   const [sizeData, setSizeData] = useState<SizeData | null>(null)
 
   const handleDownload = () => {
@@ -56,13 +60,13 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
     return () => { cancelled = true }
   }, [pokemonId, pokemonName, imageUrl])
 
-  // Close on Escape key
+  // Close on Escape key (disabled while locked open during queue auto-play)
   useEffect(() => {
-    if (!imageUrl) return
+    if (!imageUrl || lockOpen) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose?.() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [imageUrl, onClose])
+  }, [imageUrl, onClose, lockOpen])
 
   // Loading spinner — shown inline while generating
   if (isLoading) {
@@ -88,7 +92,7 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
     return (
       <div
         className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}
+        onClick={(e) => { if (!lockOpen && e.target === e.currentTarget) onClose?.() }}
       >
         <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col items-center gap-4 p-4 sm:p-6 max-h-[90dvh] overflow-y-auto">
           {/* Close button */}
@@ -114,7 +118,7 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
                 onClick={onSpeakName}
                 className="bg-[#FFCB05] text-gray-900 font-bold text-lg rounded-full px-6 py-4 min-h-[56px] hover:bg-yellow-400 transition-colors shadow-lg"
               >
-                🔊 {capitalize(pokemonName)}
+                {speakLabel ?? `🔊 ${capitalize(pokemonName)}`}
               </button>
             )}
             <button

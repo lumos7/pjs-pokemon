@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Pokemon, getOfficialArtworkUrl } from '@/lib/pokemon'
+import { AddToQueueButton } from '@/components/AddToQueueButton'
 
 interface PokemonSelectorProps {
   pokemon: Pokemon[]
@@ -33,21 +34,27 @@ export function PokemonSelector({ pokemon, selected, onSelect }: PokemonSelector
           <div className="p-4 text-center text-gray-500">No Pokemon found</div>
         ) : (
           filtered.map((p) => (
-            <button
+            <div
               key={p.id}
-              onClick={() => onSelect(p)}
-              className={`w-full flex items-center gap-3 p-2 min-h-[48px] cursor-pointer hover:bg-amber-50 transition-colors text-left ${
-                selected?.id === p.id ? 'bg-yellow-100' : ''
+              className={`flex items-center gap-2 pr-2 transition-colors ${
+                selected?.id === p.id ? 'bg-yellow-100' : 'hover:bg-amber-50'
               }`}
             >
-              <img
-                src={getOfficialArtworkUrl(p.id)}
-                alt={p.name}
-                className="w-10 h-10 object-contain flex-shrink-0"
-                loading="lazy"
-              />
-              <span className="font-medium text-gray-900">{capitalize(p.name)}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => onSelect(p)}
+                className="flex-1 flex items-center gap-3 p-2 min-h-[48px] cursor-pointer text-left"
+              >
+                <img
+                  src={getOfficialArtworkUrl(p.id)}
+                  alt={p.name}
+                  className="w-10 h-10 object-contain flex-shrink-0"
+                  loading="lazy"
+                />
+                <span className="font-medium text-gray-900">{capitalize(p.name)}</span>
+              </button>
+              <AddToQueueButton id={p.id} name={p.name} label="+ Queue" />
+            </div>
           ))
         )}
       </div>

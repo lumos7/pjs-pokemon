@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, getCryUrl, TYPE_HEX } from '@/lib/pokemon'
+import { AddToQueueButton } from '@/components/AddToQueueButton'
 
 interface EvolutionStage {
   id: number
@@ -136,6 +137,13 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
           🔊
         </button>
       </div>
+
+      {/* Add to Next Up queue — does not navigate */}
+      <AddToQueueButton
+        id={pokemon.id}
+        name={pokemon.name}
+        className="w-full rounded-full px-3 py-1.5 text-xs font-bold bg-amber-100 text-gray-800 hover:bg-amber-200 transition-colors"
+      />
 
       {/* Type badges */}
       {data ? (
