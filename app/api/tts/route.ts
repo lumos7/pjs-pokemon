@@ -14,9 +14,10 @@ const PHRASES = [
 
 export async function POST(req: NextRequest) {
   try {
-    const { pokemonName, nameOnly } = await req.json()
-    if (!pokemonName) {
-      return NextResponse.json({ error: 'Missing pokemonName' }, { status: 400 })
+    const { pokemonName, nameOnly, message } = await req.json()
+    const customMessage = typeof message === 'string' ? message.trim() : ''
+    if (!customMessage && !pokemonName) {
+      return NextResponse.json({ error: 'Missing pokemonName or message' }, { status: 400 })
     }
 
     const apiKey = process.env.ELEVENLABS_API_KEY
@@ -27,10 +28,15 @@ export async function POST(req: NextRequest) {
     }
 
     const voiceId = pickRandomVoice()
-    const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
-    const text = nameOnly
-      ? displayName
-      : PHRASES[Math.floor(Math.random() * PHRASES.length)](displayName)
+    let text: string
+    if (customMessage) {
+      text = customMessage
+    } else {
+      const displayName = pokemonName.charAt(0).toUpperCase() + pokemonName.slice(1)
+      text = nameOnly
+        ? displayName
+        : PHRASES[Math.floor(Math.random() * PHRASES.length)](displayName)
+    }
 
     console.log('[tts] voice:', voiceId, '| text:', text)
 

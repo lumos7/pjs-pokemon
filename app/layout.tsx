@@ -3,6 +3,9 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { MusicPlayer } from '@/components/MusicPlayer'
 import { NavBar } from '@/components/NavBar'
+import { BirthdayBanner } from '@/components/BirthdayBanner'
+import { BirthdayDecor } from '@/components/BirthdayDecor'
+import { BirthdayCelebration } from '@/components/BirthdayCelebration'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,7 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${inter.className} pb-32`}>
         <NavBar />
+        <BirthdayBanner />
+        <BirthdayDecor />
         {children}
+        <BirthdayCelebration />
         <MusicPlayer />
       </body>
     </html>

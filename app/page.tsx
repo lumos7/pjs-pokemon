@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BirthdayHat } from '@/components/BirthdayHat'
 
 const STARTER_POKEMON = [
   { id: 39,  name: 'Jigglypuff' },
@@ -50,14 +51,17 @@ export default function Home() {
           />
         ))}
 
-        {/* PJ — taller, center */}
-        <img
-          src="/images/PokeMaster PJ.png"
-          alt="PokeMaster PJ"
-          width={200}
-          height={200}
-          className="w-36 h-36 sm:w-48 sm:h-48 object-contain drop-shadow-lg flex-shrink-0"
-        />
+        {/* PJ — taller, center (party hat overlays during birthday week) */}
+        <div className="relative w-36 h-36 sm:w-48 sm:h-48 flex-shrink-0">
+          <img
+            src="/images/PokeMaster PJ.png"
+            alt="PokeMaster PJ"
+            width={200}
+            height={200}
+            className="w-full h-full object-contain drop-shadow-lg"
+          />
+          <BirthdayHat />
+        </div>
 
         {/* Right Pokemon */}
         {right.map((p) => (

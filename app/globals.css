@@ -10,3 +10,16 @@ body {
 /* Hide scrollbar but allow scroll */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* --- Birthday Mode --- */
+@keyframes bday-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+@keyframes bday-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(-10px) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="bday-shimmer"], [style*="bday-float"] { animation: none !important; }
+}
