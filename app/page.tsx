@@ -45,6 +45,7 @@ export default function Home() {
             key={p.id}
             src={artworkUrl(p.id)}
             alt={p.name}
+            crossOrigin="anonymous"
             width={80}
             height={80}
             className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md flex-shrink-0"
@@ -69,6 +70,7 @@ export default function Home() {
             key={p.id}
             src={artworkUrl(p.id)}
             alt={p.name}
+            crossOrigin="anonymous"
             width={80}
             height={80}
             className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md flex-shrink-0"
@@ -79,25 +81,25 @@ export default function Home() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl">
         <Link
           href="/encounter"
-          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
+          className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 active:scale-95 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
           🗺️ Let&apos;s Play!
         </Link>
         <Link
           href="/pokemon-list"
-          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
+          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 active:scale-95 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
           📖 Pokédex
         </Link>
         <Link
           href="/quiz"
-          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
+          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 active:scale-95 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
           🔍 Quiz
         </Link>
         <Link
           href="/pokemon-of-the-day"
-          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
+          className="bg-[#FFCB05] text-gray-900 text-lg sm:text-xl font-bold rounded-full px-4 py-4 shadow-xl hover:scale-105 active:scale-95 transition-transform min-h-[56px] inline-flex items-center justify-center text-center"
         >
           🌟 Pokémon Of The Day
         </Link>

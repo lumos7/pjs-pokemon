@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getOfficialArtworkUrl } from '@/lib/pokemon'
+import { getPokemonDetail } from '@/lib/pokeapiCache'
 
 interface EncounterCanvasProps {
   imageUrl: string | null
@@ -27,25 +28,37 @@ interface SizeData {
 export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, onSpeakName, onClose, lockOpen = false, speakLabel }: EncounterCanvasProps) {
   const [sizeData, setSizeData] = useState<SizeData | null>(null)
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!imageUrl || !pokemonName) return
+    const filename = `pj-meets-${pokemonName.toLowerCase()}.png`
+    // iOS standalone PWAs silently ignore <a download> on blob URLs — prefer
+    // the share sheet (lets PJ save to Photos), fall back to the anchor.
+    try {
+      const blob = await fetch(imageUrl).then((r) => r.blob())
+      const file = new File([blob], filename, { type: blob.type || 'image/png' })
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] })
+        return
+      }
+    } catch {
+      /* share unavailable or dismissed — fall through to download */
+    }
     const a = document.createElement('a')
     a.href = imageUrl
-    a.download = `pj-meets-${pokemonName.toLowerCase()}.png`
+    a.download = filename
     a.click()
   }
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-  // Fetch pokemon height for size comparison
+  // Fetch pokemon height for size comparison (shared promise cache)
   useEffect(() => {
     if (!pokemonId || !pokemonName || !imageUrl) {
       setSizeData(null)
       return
     }
     let cancelled = false
-    fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`)
-      .then(r => r.json())
+    getPokemonDetail(pokemonId)
       .then(data => {
         if (cancelled) return
         const heightM = data.height / 10 // API returns decimetres
@@ -68,11 +81,25 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
     return () => document.removeEventListener('keydown', onKey)
   }, [imageUrl, onClose, lockOpen])
 
+  // Lock body scroll while the result modal is open
+  useEffect(() => {
+    if (!imageUrl) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [imageUrl])
+
   // Loading spinner — shown inline while generating
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="text-4xl mb-3 animate-bounce">🎮</div>
+        <div
+          className="w-14 h-14 mb-4 rounded-full animate-spin border-4 border-gray-800"
+          style={{
+            background: 'linear-gradient(to bottom, #CC0000 0%, #CC0000 44%, #1f2937 44%, #1f2937 56%, #ffffff 56%, #ffffff 100%)',
+          }}
+          aria-hidden
+        />
         <p className="text-xl font-bold text-gray-700">Creating your adventure...</p>
       </div>
     )
@@ -91,7 +118,7 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
 
     return (
       <div
-        className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
         onClick={(e) => { if (!lockOpen && e.target === e.currentTarget) onClose?.() }}
       >
         <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col items-center gap-4 p-4 sm:p-6 max-h-[90dvh] overflow-y-auto">
@@ -151,6 +178,7 @@ export function EncounterCanvas({ imageUrl, pokemonName, pokemonId, isLoading, o
                   <img
                     src={getOfficialArtworkUrl(pokemonId)}
                     alt={capitalize(pokemonName)}
+                    crossOrigin="anonymous"
                     style={{ height: `${pokemonPx}px` }}
                     className="object-contain"
                   />

@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, getCryUrl, TYPE_HEX } from '@/lib/pokemon'
+import { Pokemon, getOfficialArtworkUrl, getSpriteUrl, TYPE_HEX } from '@/lib/pokemon'
 import { AddToQueueButton } from '@/components/AddToQueueButton'
+import { playCryClip } from '@/lib/encounterAudio'
+import { getPokemonDetail, getSpeciesDetail, getEvolutionChain } from '@/lib/pokeapiCache'
 
 interface EvolutionStage {
   id: number
@@ -60,12 +62,10 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
     let cancelled = false
     async function fetchData() {
       try {
-        const [pokeRes, speciesRes] = await Promise.all([
-          fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon.id}`),
-          fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemon.id}`),
+        const [pokeJson, speciesJson] = await Promise.all([
+          getPokemonDetail(pokemon.id),
+          getSpeciesDetail(pokemon.id),
         ])
-        if (!pokeRes.ok || !speciesRes.ok) return
-        const [pokeJson, speciesJson] = await Promise.all([pokeRes.json(), speciesRes.json()])
         if (cancelled) return
 
         const types: string[] = pokeJson.types.map((t: { type: { name: string } }) => t.type.name)
@@ -77,9 +77,8 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
           ? (flavourEntry.flavor_text as string).replace(/[\n\f]/g, ' ')
           : ''
 
-        const evoRes = await fetch(speciesJson.evolution_chain.url)
+        const evoJson = await getEvolutionChain(speciesJson.evolution_chain.url)
         if (cancelled) return
-        const evoJson = await evoRes.json()
         const evolutions = extractEvolutions(evoJson.chain)
 
         setData({ types, flavourText, evolutions })
@@ -100,9 +99,7 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
 
   const handleCry = (e: React.MouseEvent) => {
     e.stopPropagation()
-    const cry = new Audio(getCryUrl(pokemon.id))
-    cry.volume = 0.33
-    cry.play().catch(() => {})
+    playCryClip(pokemon.id, 0.33, pokemon.name)
   }
 
   return (
@@ -115,6 +112,7 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
       <img
         src={getOfficialArtworkUrl(pokemon.id)}
         alt={pokemon.name}
+        crossOrigin="anonymous"
         className="w-28 h-28 object-contain mx-auto"
         loading="lazy"
       />
@@ -124,15 +122,18 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
         <button
           type="button"
           onClick={handleNameClick}
-          className="text-base font-bold text-gray-900 hover:text-[#CC0000] transition-colors text-left"
+          title="Say the name"
+          className="text-base font-bold text-gray-900 hover:text-[#CC0000] active:scale-95 transition-all text-left min-h-[44px] flex items-center gap-1"
         >
+          <span className="text-sm" aria-hidden>🗣️</span>
           {capitalize(pokemon.name)}
         </button>
         <button
           type="button"
           onClick={handleCry}
           title="Play cry"
-          className="text-lg leading-none hover:scale-110 transition-transform flex-shrink-0"
+          aria-label={`Play ${pokemon.name} cry`}
+          className="text-lg leading-none hover:scale-110 active:scale-95 transition-transform flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-full hover:bg-amber-50"
         >
           🔊
         </button>
@@ -142,7 +143,7 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
       <AddToQueueButton
         id={pokemon.id}
         name={pokemon.name}
-        className="w-full rounded-full px-3 py-1.5 text-xs font-bold bg-amber-100 text-gray-800 hover:bg-amber-200 transition-colors"
+        className="w-full rounded-full px-3 py-2.5 min-h-[44px] text-sm font-bold bg-amber-100 text-gray-800 hover:bg-amber-200 active:scale-95 transition-all"
       />
 
       {/* Type badges */}
@@ -182,6 +183,7 @@ export function PokemonCard({ pokemon, onClick, onSpeakName }: PokemonCardProps)
                 <img
                   src={getSpriteUrl(evo.id)}
                   alt={evo.name}
+                  crossOrigin="anonymous"
                   className="w-8 h-8 object-contain"
                   loading="lazy"
                 />

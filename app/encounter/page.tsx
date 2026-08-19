@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { scenes } from '@/lib/scenes'
-import { Pokemon, getCryUrl, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
+import { Pokemon, fetchAllPokemon, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
 import { SceneSelector } from '@/components/SceneSelector'
 import { PokemonSelector } from '@/components/PokemonSelector'
 import { SurpriseButton } from '@/components/SurpriseButton'
@@ -11,30 +11,18 @@ import { EncounterCanvas } from '@/components/EncounterCanvas'
 import { GenFilter } from '@/components/GenFilter'
 import { QueuePanel } from '@/components/QueuePanel'
 import { useQueuePlayback } from '@/lib/useQueuePlayback'
+import { fetchNameClipUrl, fetchTtsClipUrl, playClip, playCryClip } from '@/lib/encounterAudio'
 
-function playCry(pokemonId: number) {
-  const cry = new Audio(getCryUrl(pokemonId))
-  cry.volume = 0.33
-  cry.play().catch(() => {})
+function playCry(pokemonId: number, pokemonName?: string) {
+  playCryClip(pokemonId, 0.33, pokemonName)
 }
 
 async function playTTS(pokemonName: string, pokemonId: number | null = null, nameOnly = false) {
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pokemonName, nameOnly }),
-    })
-    if (res.ok) {
-      const blob = await res.blob()
-      const audio = new Audio(URL.createObjectURL(blob))
-      // Chain cry after TTS ends
-      if (pokemonId) audio.addEventListener('ended', () => playCry(pokemonId), { once: true })
-      audio.play().catch(() => {})
-    }
-  } catch (e) {
-    console.error('[tts-client] fetch error:', e)
-  }
+  const url = nameOnly ? await fetchNameClipUrl(pokemonName) : await fetchTtsClipUrl(pokemonName)
+  if (!url) return
+  const clip = playClip(url, 1, { revokeUrl: !nameOnly })
+  // Chain cry only if the TTS finished (not preempted by another tap)
+  if (pokemonId && (await clip.done)) playCry(pokemonId, pokemonName)
 }
 
 function EncounterContent() {
@@ -46,7 +34,10 @@ function EncounterContent() {
   const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [loadingPokemon, setLoadingPokemon] = useState(true)
+  const [listError, setListError] = useState(false)
+  const [generateError, setGenerateError] = useState(false)
   const [flashActive, setFlashActive] = useState(false)
+  const genRunId = useRef(0) // cancel stale generate() results
 
   // --- Queue ("Next Up") ---
   const [queueOpen, setQueueOpen] = useState(false)
@@ -59,27 +50,22 @@ function EncounterContent() {
   const queueActiveRef = useRef(queueActive)
   queueActiveRef.current = queueActive
 
-  // Fetch all 1025 Pokemon on mount
-  useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0')
-      .then((r) => {
-        if (!r.ok) throw new Error(`PokeAPI error: ${r.status}`)
-        return r.json()
-      })
-      .then((data: { results: { name: string; url: string }[] }) => {
-        const list: Pokemon[] = data.results.map((p) => {
-          const segments = p.url.replace(/\/$/, '').split('/')
-          const id = parseInt(segments[segments.length - 1], 10)
-          return { id, name: p.name }
-        })
+  // Fetch all 1025 Pokemon on mount (module-cached across pages)
+  const loadPokemonList = () => {
+    setLoadingPokemon(true)
+    setListError(false)
+    fetchAllPokemon()
+      .then((list) => {
         setPokemonList(list)
         setLoadingPokemon(false)
       })
-      .catch((e) => {
-        console.error('Failed to load pokemon:', e)
+      .catch(() => {
+        setListError(true)
         setLoadingPokemon(false)
       })
-  }, [])
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadPokemonList() }, [])
 
   // Pre-select pokemon from URL params (coming from /pokemon-list)
   useEffect(() => {
@@ -114,17 +100,34 @@ function EncounterContent() {
     saveSelectedGens(ids)
   }
 
+  // Track the live object URL so the previous composite blob is released
+  const compositeUrlRef = useRef<string | null>(null)
+  const setComposite = (url: string | null) => {
+    if (compositeUrlRef.current && compositeUrlRef.current !== url) {
+      URL.revokeObjectURL(compositeUrlRef.current)
+    }
+    compositeUrlRef.current = url
+    setCompositeImageUrl(url)
+  }
+
   const handleSelectPokemon = (p: Pokemon) => {
     setSelectedPokemon(p)
+    setGenerateError(false)
     // Clear generated result so stale image isn't shown and TTS doesn't fire
-    if (compositeImageUrl) setCompositeImageUrl(null)
+    if (compositeImageUrl) setComposite(null)
   }
 
   const filteredPokemon = filterByGens(pokemonList, selectedGens)
 
+  const lastGenRef = useRef<{ sceneId: string; pokemon: Pokemon } | null>(null)
+
   const generate = async (sceneId: string, pokemon: Pokemon) => {
+    const myRun = ++genRunId.current
+    lastGenRef.current = { sceneId, pokemon }
     setIsGenerating(true)
-    setCompositeImageUrl(null)
+    setGenerateError(false)
+    setComposite(null)
+    playCry(pokemon.id, pokemon.name) // anticipation cue while Sharp works
     try {
       const res = await fetch('/api/composite', {
         method: 'POST',
@@ -137,13 +140,20 @@ function EncounterContent() {
       })
       if (!res.ok) throw new Error('Composite failed')
       const blob = await res.blob()
-      setCompositeImageUrl(URL.createObjectURL(blob))
+      if (myRun !== genRunId.current) return // superseded by a newer generate
+      setComposite(URL.createObjectURL(blob))
     } catch (e) {
+      if (myRun !== genRunId.current) return
       console.error('Generate error:', e)
-      alert('Something went wrong! Try again.')
+      setGenerateError(true)
     } finally {
-      setIsGenerating(false)
+      if (myRun === genRunId.current) setIsGenerating(false)
     }
+  }
+
+  const retryGenerate = () => {
+    const last = lastGenRef.current
+    if (last) generate(last.sceneId, last.pokemon)
   }
 
   const handleGenerate = async () => {
@@ -166,12 +176,9 @@ function EncounterContent() {
     // Flash white
     setFlashActive(true)
     setTimeout(() => setFlashActive(false), 200)
-    // Pick random scene + pokemon
+    // Pick random scene + pokemon — generate() plays the cry
     const randomScene = scenes[Math.floor(Math.random() * scenes.length)]
     const randomPokemon = filteredPokemon[Math.floor(Math.random() * filteredPokemon.length)]
-    // Play cry immediately
-    playCry(randomPokemon.id)
-    // Set selections and generate
     setSelectedScene(randomScene.id)
     setSelectedPokemon(randomPokemon)
     generate(randomScene.id, randomPokemon)
@@ -236,6 +243,18 @@ function EncounterContent() {
           </div>
           {loadingPokemon ? (
             <p className="text-gray-500 text-center py-4">Loading Pokemon...</p>
+          ) : listError ? (
+            <div className="text-center py-6 bg-red-50 border-2 border-dashed border-red-200 rounded-2xl">
+              <div className="text-3xl mb-2">📡</div>
+              <p className="text-gray-700 font-bold mb-3">Couldn&apos;t load the Pokémon!</p>
+              <button
+                type="button"
+                onClick={loadPokemonList}
+                className="bg-[#FFCB05] text-gray-900 font-bold rounded-full px-6 py-3 min-h-[48px] shadow hover:bg-yellow-400 active:scale-95 transition-all"
+              >
+                🔄 Try Again!
+              </button>
+            </div>
           ) : (
             <PokemonSelector
               pokemon={filteredPokemon}
@@ -245,23 +264,54 @@ function EncounterContent() {
           )}
         </section>
 
-        <EncounterCanvas
-          imageUrl={displayImage}
-          pokemonName={displayName}
-          pokemonId={displayId}
-          isLoading={displayLoading}
-          lockOpen={queueActive}
-          speakLabel={queueActive ? '🔊 Cry again' : undefined}
-          onSpeakName={
-            queueActive
-              ? playback.replayCry
-              : selectedPokemon
-                ? () => playTTS(selectedPokemon.name, selectedPokemon.id, true)
-                : undefined
-          }
-          onClose={queueActive ? playback.stop : () => setCompositeImageUrl(null)}
-        />
+        {generateError && !displayLoading && !queueActive ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-red-200 bg-red-50 rounded-2xl">
+            <div className="text-4xl mb-3">😵</div>
+            <p className="text-lg font-bold text-gray-700 mb-4">Oops! That didn&apos;t work.</p>
+            <button
+              type="button"
+              onClick={retryGenerate}
+              className="bg-[#FFCB05] text-gray-900 font-bold text-lg rounded-full px-8 py-4 min-h-[56px] shadow-lg hover:bg-yellow-400 active:scale-95 transition-all"
+            >
+              🔄 Try Again!
+            </button>
+          </div>
+        ) : (
+          <EncounterCanvas
+            imageUrl={displayImage}
+            pokemonName={displayName}
+            pokemonId={displayId}
+            isLoading={displayLoading}
+            lockOpen={queueActive}
+            speakLabel={queueActive ? '🔊 Cry again' : undefined}
+            onSpeakName={
+              queueActive
+                ? playback.replayCry
+                : selectedPokemon
+                  ? () => playTTS(selectedPokemon.name, selectedPokemon.id, true)
+                  : undefined
+            }
+            onClose={queueActive ? playback.stop : () => setComposite(null)}
+          />
+        )}
       </main>
+
+      {/* Big sticky Go button — the small header Generate is easy to lose after
+          scrolling the Pokémon list; kids need the CTA in view. */}
+      {selectedScene && selectedPokemon && !displayImage && !displayLoading && !queueActive && !generateError && (
+        <div
+          className="fixed left-0 right-0 z-40 flex justify-center px-4 pointer-events-none"
+          style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+        >
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="pointer-events-auto bg-gradient-to-r from-[#CC0000] to-[#FF4444] text-white font-extrabold text-xl rounded-full px-10 py-4 min-h-[60px] shadow-2xl hover:scale-105 active:scale-95 transition-transform"
+          >
+            ✨ Go! Meet {selectedPokemon.name.charAt(0).toUpperCase() + selectedPokemon.name.slice(1)}!
+          </button>
+        </div>
+      )}
 
       <QueuePanel
         playback={playback}

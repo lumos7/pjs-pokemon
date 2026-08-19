@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The display font used via inline fontFamily across the app — served from
+   the same TTF Sharp uses for image captions, so screens match composites. */
+@font-face {
+  font-family: 'Bangers';
+  src: url('/fonts/Bangers-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
 body {
   background-color: #FFF8E7;
   min-height: 100vh;

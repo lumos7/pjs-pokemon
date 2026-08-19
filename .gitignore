@@ -37,3 +37,6 @@ next-env.d.ts
 
 # temp dirs
 /temp-scaffold
+
+# generated at build time from sw.template.js (scripts/gen-sw.mjs)
+/public/sw.js

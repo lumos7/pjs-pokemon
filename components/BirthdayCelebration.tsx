@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBirthday } from '@/lib/useBirthday'
 import { Confetti } from './Confetti'
+import { playClip } from '@/lib/encounterAudio'
 
 const SESSION_FLAG = 'pj-birthday-celebrated'
 
@@ -16,9 +17,7 @@ async function speakHappyBirthday() {
     })
     if (!res.ok) return
     const blob = await res.blob()
-    const audio = new Audio(URL.createObjectURL(blob))
-    audio.volume = 0.95
-    audio.play().catch(() => {})
+    playClip(URL.createObjectURL(blob), 0.95, { revokeUrl: true })
   } catch {
     /* celebration is best-effort — never throw */
   }
@@ -63,12 +62,8 @@ export function BirthdayCelebration() {
       sessionStorage.setItem(SESSION_FLAG, '1')
       cleanup()
 
-      const afterJingle = () => { if (isDay) void speakHappyBirthday() }
-      const jingle = new Audio('/music/birthday-song.mp3')
-      jingle.volume = 0.7
-      jingle.addEventListener('ended', afterJingle, { once: true })
-      jingle.addEventListener('error', afterJingle, { once: true })
-      jingle.play().catch(afterJingle)
+      const jingle = playClip('/music/birthday-song.mp3', 0.7)
+      void jingle.done.then(() => { if (isDay) void speakHappyBirthday() })
     }
 
     document.addEventListener('pointerdown', celebrate)

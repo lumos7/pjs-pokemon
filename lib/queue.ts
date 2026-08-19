@@ -52,8 +52,11 @@ function emit(next: QueueItem[]) {
 }
 
 function nextUid(id: number): string {
+  // Random suffix — a plain counter restarts at 0 after refresh and collides
+  // with uids hydrated from sessionStorage (duplicate keys, remove() deleting
+  // two entries at once).
   uidCounter += 1
-  return `${id}-${uidCounter}`
+  return `${id}-${uidCounter}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export const queueStore = {

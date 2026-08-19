@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { Pokemon, getOfficialArtworkUrl, getCryUrl, GENERATIONS, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
+import { useEffect, useState, useCallback } from 'react'
+import { Pokemon, fetchAllPokemon, getOfficialArtworkUrl, GENERATIONS, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
 import { fisherYates } from '@/lib/scenes'
+import { playClip, speakName as speakPokemonName, stopClip } from '@/lib/encounterAudio'
 
 const STORAGE_KEY = 'pjs-quiz-state'
 
@@ -38,22 +39,18 @@ export default function QuizPage() {
   const [showResumeModal, setShowResumeModal] = useState(false)
   const [savedState, setSavedState] = useState<QuizState | null>(null)
 
-  const jingleRef = useRef<HTMLAudioElement | null>(null)
-
-  // Fetch pokemon list
-  useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0')
-      .then(r => r.json())
-      .then(data => {
-        const list: Pokemon[] = data.results.map((p: { name: string; url: string }) => {
-          const segments = p.url.replace(/\/$/, '').split('/')
-          const id = parseInt(segments[segments.length - 1], 10)
-          return { id, name: p.name }
-        })
-        setAllPokemon(list)
-      })
-      .catch(() => {})
+  // Fetch pokemon list (module-cached across pages)
+  const [listError, setListError] = useState(false)
+  const loadList = useCallback(() => {
+    setListError(false)
+    fetchAllPokemon()
+      .then(setAllPokemon)
+      .catch(() => setListError(true))
   }, [])
+  useEffect(() => { loadList() }, [loadList])
+
+  // Stop any quiz audio (jingle/TTS/cry) when leaving the page
+  useEffect(() => () => stopClip(), [])
 
   // Check sessionStorage on mount
   useEffect(() => {
@@ -115,15 +112,8 @@ export default function QuizPage() {
     setSelectedCorrect(false)
     setShowNext(false)
 
-    // Play jingle
-    if (jingleRef.current) {
-      jingleRef.current.pause()
-      jingleRef.current.currentTime = 0
-    }
-    const jingle = new Audio('/music/whos-that-pokemon.mp3')
-    jingle.volume = 0.5
-    jingle.play().catch(() => {})
-    jingleRef.current = jingle
+    // Play jingle via the bus — stops any leftover TTS/cry from the last round
+    playClip('/music/whos-that-pokemon.mp3', 0.5)
 
     return answer
   }, [])
@@ -148,23 +138,7 @@ export default function QuizPage() {
   }, [allPokemon, selectedGens, pickRound])
 
   const speakThenCry = useCallback((pokemon: Pokemon) => {
-    fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pokemonName: pokemon.name, nameOnly: true }),
-    })
-      .then(res => res.ok ? res.blob() : null)
-      .then(blob => {
-        if (!blob) return
-        const audio = new Audio(URL.createObjectURL(blob))
-        audio.addEventListener('ended', () => {
-          const cry = new Audio(getCryUrl(pokemon.id))
-          cry.volume = 0.33
-          cry.play().catch(() => {})
-        }, { once: true })
-        audio.play().catch(() => {})
-      })
-      .catch(() => {})
+    void speakPokemonName(pokemon.name, pokemon.id)
   }, [])
 
   const handleAnswer = useCallback((chosen: Pokemon) => {
@@ -253,7 +227,7 @@ export default function QuizPage() {
                     type="checkbox"
                     checked={selectedGens.includes(gen.id)}
                     onChange={() => handleGensChange(gen.id)}
-                    className="accent-[#FFCB05] w-3.5 h-3.5"
+                    className="accent-[#FFCB05] w-5 h-5"
                   />
                   <span className="text-white text-xs">Gen {gen.id}</span>
                 </label>
@@ -261,12 +235,20 @@ export default function QuizPage() {
             </div>
           </div>
 
-          <button
-            onClick={() => startGame()}
-            disabled={allPokemon.length === 0}
-            className="bg-[#FFCB05] text-gray-900 font-bold text-xl px-10 py-4 rounded-full hover:scale-105 transition-transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-            {allPokemon.length === 0 ? 'Loading...' : 'Start!'}
-          </button>
+          {listError ? (
+            <button
+              onClick={loadList}
+              className="bg-white text-[#CC0000] font-bold text-xl px-10 py-4 rounded-full hover:scale-105 active:scale-95 transition-transform shadow-lg">
+              📡 Couldn&apos;t load — Try Again!
+            </button>
+          ) : (
+            <button
+              onClick={() => startGame()}
+              disabled={allPokemon.length === 0}
+              className="bg-[#FFCB05] text-gray-900 font-bold text-xl px-10 py-4 rounded-full hover:scale-105 active:scale-95 transition-transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+              {allPokemon.length === 0 ? 'Loading...' : 'Start!'}
+            </button>
+          )}
         </div>
       </div>
     )
@@ -296,9 +278,6 @@ export default function QuizPage() {
   }
 
   // Game screen
-  if (currentPokemon) {
-    console.log('[quiz] Rendering pokemon:', currentPokemon.id, currentPokemon.name, '| URL:', getOfficialArtworkUrl(currentPokemon.id), '| revealed:', revealed)
-  }
   const lives = 2 - strikes
 
   return (
@@ -326,17 +305,16 @@ export default function QuizPage() {
                 key={currentPokemon.id}
                 src={getOfficialArtworkUrl(currentPokemon.id)}
                 alt={revealed ? capitalize(currentPokemon.name) : 'Mystery Pokémon'}
+                crossOrigin="anonymous"
                 className="w-full h-full object-contain drop-shadow-2xl"
                 style={{
                   filter: revealed ? 'brightness(1)' : 'brightness(0)',
                   transition: 'filter 0.5s ease-in-out',
                 }}
-                onLoad={() => console.log('[quiz] Image loaded:', getOfficialArtworkUrl(currentPokemon.id))}
-                onError={() => console.error('[quiz] Image FAILED to load:', getOfficialArtworkUrl(currentPokemon.id))}
               />
               {!revealed && (
-                <span className="absolute top-1/2 -translate-y-1/2 text-8xl sm:text-9xl font-bold text-[#FFCB05] opacity-80 select-none"
-                  style={{ left: '100%', marginLeft: '20px', fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '3px #2A75BB' }}>
+                <span className="absolute top-0 right-0 text-7xl sm:text-8xl font-bold text-[#FFCB05] opacity-90 select-none"
+                  style={{ fontFamily: "'Bangers', 'Impact', cursive", WebkitTextStroke: '3px #2A75BB' }}>
                   ?
                 </span>
               )}
@@ -372,9 +350,18 @@ export default function QuizPage() {
               <button key={choice.id}
                 onClick={() => handleAnswer(choice)}
                 disabled={revealed || isDisabled}
-                className={`${bg} text-gray-900 font-bold py-3 px-4 rounded-full text-sm sm:text-base transition-all shadow-md
+                className={`${bg} text-gray-900 font-bold py-3 px-3 rounded-full text-sm sm:text-base transition-all shadow-md min-h-[52px] flex items-center justify-center gap-1.5
                   ${revealed || isDisabled ? 'cursor-not-allowed opacity-80' : 'hover:scale-105 active:scale-95'}
                   ${showGreen ? 'text-white' : ''} ${showRed ? 'text-white' : ''}`}>
+                {/* Hear the name — lets a pre-reader play without reading */}
+                <span
+                  role="button"
+                  aria-label={`Hear ${capitalize(choice.name)}`}
+                  onClick={(e) => { e.stopPropagation(); void speakPokemonName(choice.name) }}
+                  className="text-lg leading-none hover:scale-125 transition-transform"
+                >
+                  🔊
+                </span>
                 {capitalize(choice.name)}
               </button>
             )

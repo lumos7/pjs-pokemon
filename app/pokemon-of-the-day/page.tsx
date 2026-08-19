@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getOfficialArtworkUrl, getSpriteUrl, getCryUrl, TYPE_HEX } from '@/lib/pokemon'
+import { getOfficialArtworkUrl, getSpriteUrl, TYPE_HEX } from '@/lib/pokemon'
+import { speakName as speakPokemonName } from '@/lib/encounterAudio'
+import { getPokemonDetail, getSpeciesDetail, getEvolutionChain } from '@/lib/pokeapiCache'
 
 interface EvolutionStage { id: number; name: string }
 
@@ -16,7 +18,10 @@ interface DailyData {
 }
 
 function getDailyPokemonId(total: number): number {
-  const dateStr = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+  // Local date, not toISOString() (UTC) — otherwise the daily Pokémon flips
+  // at 1am London time during BST instead of midnight.
+  const d = new Date()
+  const dateStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
   let seed = 0
   for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i)
   return (seed % total) + 1
@@ -53,19 +58,19 @@ export default function PokemonOfTheDayPage() {
   const router = useRouter()
   const [data, setData] = useState<DailyData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     const pokemonId = getDailyPokemonId(1025)
     let cancelled = false
+    setLoading(true)
 
     async function load() {
       try {
-        const [pokeRes, speciesRes] = await Promise.all([
-          fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`),
-          fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}`),
+        const [pokeJson, speciesJson] = await Promise.all([
+          getPokemonDetail(pokemonId),
+          getSpeciesDetail(pokemonId),
         ])
-        if (!pokeRes.ok || !speciesRes.ok) return
-        const [pokeJson, speciesJson] = await Promise.all([pokeRes.json(), speciesRes.json()])
         if (cancelled) return
 
         const types: string[] = pokeJson.types.map((t: { type: { name: string } }) => t.type.name)
@@ -81,9 +86,8 @@ export default function PokemonOfTheDayPage() {
           ? (flavourEntry.flavor_text as string).replace(/[\n\f]/g, ' ')
           : ''
 
-        const evoRes = await fetch(speciesJson.evolution_chain.url)
+        const evoJson = await getEvolutionChain(speciesJson.evolution_chain.url)
         if (cancelled) return
-        const evoJson = await evoRes.json()
         const evolutions = extractEvolutions(evoJson.chain)
 
         setData({
@@ -103,30 +107,11 @@ export default function PokemonOfTheDayPage() {
 
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [attempt])
 
-  const playCry = () => {
+  const speakName = () => {
     if (!data) return
-    const cry = new Audio(getCryUrl(data.id))
-    cry.volume = 0.33
-    cry.play().catch(() => {})
-  }
-
-  const speakName = async () => {
-    if (!data) return
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pokemonName: data.name, nameOnly: true }),
-      })
-      if (res.ok) {
-        const blob = await res.blob()
-        const audio = new Audio(URL.createObjectURL(blob))
-        audio.addEventListener('ended', playCry, { once: true })
-        audio.play().catch(() => {})
-      }
-    } catch { /* ignore */ }
+    void speakPokemonName(data.name, data.id)
   }
 
   const handleGenerateEncounter = () => {
@@ -146,7 +131,15 @@ export default function PokemonOfTheDayPage() {
   if (!data) {
     return (
       <main className="max-w-2xl mx-auto px-4 pt-12 pb-24 text-center">
-        <p className="text-xl text-gray-500">Failed to load. Try refreshing!</p>
+        <div className="text-4xl mb-3">📡</div>
+        <p className="text-xl text-gray-700 font-bold mb-4">Couldn&apos;t load today&apos;s Pokémon!</p>
+        <button
+          type="button"
+          onClick={() => setAttempt(a => a + 1)}
+          className="bg-[#FFCB05] text-gray-900 font-bold text-lg rounded-full px-8 py-4 min-h-[56px] shadow-lg hover:bg-yellow-400 active:scale-95 transition-all"
+        >
+          🔄 Try Again!
+        </button>
       </main>
     )
   }
@@ -167,6 +160,7 @@ export default function PokemonOfTheDayPage() {
         <img
           src={getOfficialArtworkUrl(data.id)}
           alt={capitalize(data.name)}
+          crossOrigin="anonymous"
           className="w-64 h-64 sm:w-80 sm:h-80 object-contain drop-shadow-xl"
         />
       </div>
@@ -174,7 +168,8 @@ export default function PokemonOfTheDayPage() {
       {/* Name — clickable for TTS + cry */}
       <div className="text-center">
         <button onClick={speakName}
-          className="text-4xl sm:text-5xl font-extrabold text-[#CC0000] hover:text-[#ff1a1a] transition-colors"
+          title="Say the name"
+          className="text-4xl sm:text-5xl font-extrabold text-[#CC0000] hover:text-[#ff1a1a] active:scale-95 transition-all"
           style={{ fontFamily: "'Bangers', 'Impact', cursive", letterSpacing: '0.04em', WebkitTextStroke: '1px #2A75BB' }}>
           {capitalize(data.name)}
         </button>
@@ -225,6 +220,7 @@ export default function PokemonOfTheDayPage() {
                 <div className="flex flex-col items-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={getSpriteUrl(evo.id)} alt={evo.name}
+                    crossOrigin="anonymous"
                     className="w-12 h-12 object-contain" loading="lazy" />
                   <span className={`text-xs font-medium ${evo.id === data.id ? 'text-[#CC0000] font-bold' : 'text-gray-500'}`}>
                     {capitalize(evo.name)}

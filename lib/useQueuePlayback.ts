@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { QueueItem, queueStore, useQueue } from '@/lib/queue'
 import { getEncounterImage, prefetchEncounter, randomSceneId } from '@/lib/encounterImages'
-import { fetchTtsClipUrl, playClip, playCryClip, stopClip } from '@/lib/encounterAudio'
+import { fetchTtsClipUrl, playClip, playCryClip, prefetchTtsClip, stopClip } from '@/lib/encounterAudio'
 
 export type PlaybackPhase = 'idle' | 'generating' | 'audio' | 'counting' | 'finished'
 
@@ -57,7 +57,6 @@ export function useQueuePlayback(lockedSceneId: string | null): QueuePlayback {
   lockedSceneRef.current = lockedSceneId
 
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null)
-  const activeAudio = useRef<HTMLAudioElement | null>(null)
   const runId = useRef(0)
   const sceneMap = useRef(new Map<string, string>())
 
@@ -69,8 +68,7 @@ export function useQueuePlayback(lockedSceneId: string | null): QueuePlayback {
   }, [])
 
   const stopAudio = useCallback(() => {
-    stopClip(activeAudio.current)
-    activeAudio.current = null
+    stopClip()
   }, [])
 
   // Pick (and remember) the scene for an item so prefetch and play agree → cache hit.
@@ -125,11 +123,9 @@ export function useQueuePlayback(lockedSceneId: string | null): QueuePlayback {
   const replayCry = useCallback(() => {
     const cur = currentRef.current
     if (!cur) return
-    stopAudio()
-    const cry = playCryClip(cur.id)
-    activeAudio.current = cry.audio
+    playCryClip(cur.id, 0.33, cur.name) // bus stops whatever is playing first
     if (phaseRef.current === 'counting') startCountdown()
-  }, [stopAudio, startCountdown])
+  }, [startCountdown])
 
   const togglePlay = useCallback(() => {
     if (playingRef.current) {
@@ -180,6 +176,8 @@ export function useQueuePlayback(lockedSceneId: string | null): QueuePlayback {
 
     ;(async () => {
       const sceneId = sceneFor(item.uid)
+      // Fetch the TTS line in parallel with image generation, not after it.
+      const ttsPromise = fetchTtsClipUrl(item.name)
       let url: string | null = null
       try {
         url = await getEncounterImage(item.id, item.name, sceneId)
@@ -194,21 +192,22 @@ export function useQueuePlayback(lockedSceneId: string | null): QueuePlayback {
       setImageUrl(url)
       setPhase('audio')
 
-      // Warm the next item while this one plays so advancing is instant.
+      // Warm the next item (image + TTS) while this one plays so advancing is instant.
       const next = queueStore.get()[1]
-      if (next) prefetchEncounter(next.id, next.name, sceneFor(next.uid))
+      if (next) {
+        prefetchEncounter(next.id, next.name, sceneFor(next.uid))
+        prefetchTtsClip(next.name)
+      }
 
-      const ttsUrl = await fetchTtsClipUrl(item.name)
+      const ttsUrl = await ttsPromise
       if (!alive()) return
       if (ttsUrl) {
-        const tts = playClip(ttsUrl, 0.95)
-        activeAudio.current = tts.audio
+        const tts = playClip(ttsUrl, 0.95, { revokeUrl: true })
         await tts.done
         if (!alive()) return
       }
 
-      const cry = playCryClip(item.id)
-      activeAudio.current = cry.audio
+      const cry = playCryClip(item.id, 0.33, item.name)
       await cry.done
       if (!alive()) return
 

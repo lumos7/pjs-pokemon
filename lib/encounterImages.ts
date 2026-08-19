@@ -10,11 +10,22 @@ import { scenes } from '@/lib/scenes'
  * concurrent requests (e.g. prefetch racing the actual play) for the same key.
  */
 
-const cache = new Map<string, string>() // key -> object URL
+const cache = new Map<string, string>() // key -> object URL (insertion-ordered)
 const inflight = new Map<string, Promise<string>>()
+const CACHE_MAX = 16 // ~1-2MB per composite — cap so long queue sessions don't eat RAM
 
 function keyFor(pokemonId: number, sceneId: string): string {
   return `${pokemonId}:${sceneId}`
+}
+
+function cachePut(key: string, url: string) {
+  while (cache.size >= CACHE_MAX) {
+    const oldest = cache.entries().next().value
+    if (!oldest) break
+    cache.delete(oldest[0])
+    URL.revokeObjectURL(oldest[1])
+  }
+  cache.set(key, url)
 }
 
 export function randomSceneId(): string {
@@ -47,7 +58,7 @@ export async function getEncounterImage(
     if (!res.ok) throw new Error(`Composite failed: ${res.status}`)
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
-    cache.set(key, url)
+    cachePut(key, url)
     inflight.delete(key)
     return url
   })()

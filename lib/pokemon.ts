@@ -74,7 +74,23 @@ export function getSpriteUrl(id: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
 }
 
-export function getCryUrl(id: number): string {
+// Safari/iOS can't decode Ogg Vorbis — fall back to Pokémon Showdown's mp3
+// cries (keyed by squashed name) when ogg isn't supported and we know the name.
+let oggSupport: boolean | null = null
+function canPlayOgg(): boolean {
+  if (oggSupport === null) {
+    oggSupport =
+      typeof Audio !== 'undefined' &&
+      new Audio().canPlayType('audio/ogg; codecs="vorbis"') !== ''
+  }
+  return oggSupport
+}
+
+export function getCryUrl(id: number, name?: string): string {
+  if (name && !canPlayOgg()) {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+    return `https://play.pokemonshowdown.com/audio/cries/${slug}.mp3`
+  }
   return `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`
 }
 

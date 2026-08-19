@@ -2,22 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pokemon, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
+import { Pokemon, fetchAllPokemon, loadSelectedGens, saveSelectedGens, filterByGens } from '@/lib/pokemon'
 import { PokemonCard } from '@/components/PokemonCard'
 import { GenFilter } from '@/components/GenFilter'
+import { speakName as speakPokemonName } from '@/lib/encounterAudio'
 
-async function speakName(pokemon: Pokemon) {
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pokemonName: pokemon.name, nameOnly: true }),
-    })
-    if (res.ok) {
-      const blob = await res.blob()
-      new Audio(URL.createObjectURL(blob)).play().catch(() => {})
-    }
-  } catch { /* ignore */ }
+function speakName(pokemon: Pokemon) {
+  void speakPokemonName(pokemon.name)
 }
 
 export default function PokemonListPage() {
@@ -26,32 +17,33 @@ export default function PokemonListPage() {
   const [selectedGens, setSelectedGens] = useState<number[]>(() => loadSelectedGens())
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
-  useEffect(() => {
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0')
-      .then(r => r.json())
-      .then((data: { results: { name: string; url: string }[] }) => {
-        const list: Pokemon[] = data.results.map((p) => {
-          const segments = p.url.replace(/\/$/, '').split('/')
-          const id = parseInt(segments[segments.length - 1], 10)
-          return { id, name: p.name }
-        })
+  const loadList = () => {
+    setLoading(true)
+    setLoadError(false)
+    fetchAllPokemon()
+      .then((list) => {
         setPokemonList(list)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
-  }, [])
+      .catch(() => {
+        setLoadError(true)
+        setLoading(false)
+      })
+  }
+  useEffect(() => { loadList() }, [])
 
   const handleGensChange = (ids: number[]) => {
     setSelectedGens(ids)
     saveSelectedGens(ids)
   }
 
-  const filtered = pokemonList.filter((p) => {
-    const inGens = filterByGens([p], selectedGens).length > 0
-    const inSearch = p.name.toLowerCase().includes(search.toLowerCase())
-    return inGens && inSearch
-  })
+  const searchLower = search.toLowerCase()
+  const inGens = filterByGens(pokemonList, selectedGens)
+  const filtered = searchLower
+    ? inGens.filter((p) => p.name.toLowerCase().includes(searchLower))
+    : inGens
 
   const handleCardClick = (p: Pokemon) => {
     router.push(`/encounter?pokemonId=${p.id}&pokemonName=${encodeURIComponent(p.name)}`)
@@ -73,13 +65,25 @@ export default function PokemonListPage() {
           placeholder="Search…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="flex-1 min-w-[140px] rounded-full px-4 py-2 border-2 border-amber-300 focus:border-[#FFCB05] focus:outline-none text-sm"
+          className="flex-1 min-w-[140px] rounded-full px-4 py-2 border-2 border-amber-300 focus:border-[#FFCB05] focus:outline-none text-base"
         />
         <GenFilter selectedGens={selectedGens} onChange={handleGensChange} />
       </div>
 
       {loading ? (
         <p className="text-center text-gray-500 py-12">Loading Pokémon…</p>
+      ) : loadError ? (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-3">📡</div>
+          <p className="text-gray-700 font-bold mb-4">Couldn&apos;t load the Pokédex!</p>
+          <button
+            type="button"
+            onClick={loadList}
+            className="bg-[#FFCB05] text-gray-900 font-bold rounded-full px-8 py-4 min-h-[52px] shadow-lg hover:bg-yellow-400 active:scale-95 transition-all"
+          >
+            🔄 Try Again!
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {filtered.map((p) => (

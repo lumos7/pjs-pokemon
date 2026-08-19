@@ -13,9 +13,14 @@ interface PokemonSelectorProps {
 export function PokemonSelector({ pokemon, selected, onSelect }: PokemonSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filtered = pokemon.filter((p) =>
+  // Cap the rendered rows — 1025 <img> rows in a 300px scroll box is the main
+  // jank source on tablets; search narrows to what's actually wanted.
+  const MAX_ROWS = 60
+  const allMatches = pokemon.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  const filtered = allMatches.slice(0, MAX_ROWS)
+  const hiddenCount = allMatches.length - filtered.length
 
   const capitalize = (name: string) =>
     name.charAt(0).toUpperCase() + name.slice(1)
@@ -48,6 +53,7 @@ export function PokemonSelector({ pokemon, selected, onSelect }: PokemonSelector
                 <img
                   src={getOfficialArtworkUrl(p.id)}
                   alt={p.name}
+                  crossOrigin="anonymous"
                   className="w-10 h-10 object-contain flex-shrink-0"
                   loading="lazy"
                 />
@@ -56,6 +62,11 @@ export function PokemonSelector({ pokemon, selected, onSelect }: PokemonSelector
               <AddToQueueButton id={p.id} name={p.name} label="+ Queue" />
             </div>
           ))
+        )}
+        {hiddenCount > 0 && (
+          <div className="p-3 text-center text-sm text-gray-500">
+            …and {hiddenCount} more — type to find them!
+          </div>
         )}
       </div>
     </div>
