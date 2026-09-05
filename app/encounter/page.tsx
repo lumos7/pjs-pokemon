@@ -11,16 +11,23 @@ import { EncounterCanvas } from '@/components/EncounterCanvas'
 import { GenFilter } from '@/components/GenFilter'
 import { QueuePanel } from '@/components/QueuePanel'
 import { useQueuePlayback } from '@/lib/useQueuePlayback'
-import { fetchNameClipUrl, fetchTtsClipUrl, playClip, playCryClip } from '@/lib/encounterAudio'
+import { fetchTtsClipUrl, playClip, playCryClip } from '@/lib/encounterAudio'
 
 function playCry(pokemonId: number, pokemonName?: string) {
   playCryClip(pokemonId, 0.33, pokemonName)
 }
 
-async function playTTS(pokemonName: string, pokemonId: number | null = null, nameOnly = false) {
-  const url = nameOnly ? await fetchNameClipUrl(pokemonName) : await fetchTtsClipUrl(pokemonName)
-  if (!url) return
-  const clip = playClip(url, 1, { revokeUrl: !nameOnly })
+/** Speak the "Look PJ, this is X!" line, then chain the cry. */
+async function playTTS(pokemonName: string, pokemonId: number | null = null) {
+  const url = await fetchTtsClipUrl(pokemonName)
+  if (!url) {
+    // TTS unavailable (bad/missing ELEVENLABS_API_KEY, quota, offline). Never
+    // leave the encounter silent — the cry stands in for the line.
+    console.warn('[encounter] TTS unavailable — falling back to cry')
+    if (pokemonId) playCry(pokemonId, pokemonName)
+    return
+  }
+  const clip = playClip(url, 1, { revokeUrl: true })
   // Chain cry only if the TTS finished (not preempted by another tap)
   if (pokemonId && (await clip.done)) playCry(pokemonId, pokemonName)
 }
@@ -127,7 +134,6 @@ function EncounterContent() {
     setIsGenerating(true)
     setGenerateError(false)
     setComposite(null)
-    playCry(pokemon.id, pokemon.name) // anticipation cue while Sharp works
     try {
       const res = await fetch('/api/composite', {
         method: 'POST',
@@ -176,7 +182,7 @@ function EncounterContent() {
     // Flash white
     setFlashActive(true)
     setTimeout(() => setFlashActive(false), 200)
-    // Pick random scene + pokemon — generate() plays the cry
+    // Pick random scene + pokemon — audio fires once the encounter is on screen
     const randomScene = scenes[Math.floor(Math.random() * scenes.length)]
     const randomPokemon = filteredPokemon[Math.floor(Math.random() * filteredPokemon.length)]
     setSelectedScene(randomScene.id)
@@ -283,12 +289,12 @@ function EncounterContent() {
             pokemonId={displayId}
             isLoading={displayLoading}
             lockOpen={queueActive}
-            speakLabel={queueActive ? '🔊 Cry again' : undefined}
+            speakLabel={queueActive ? '🔊 Cry again' : '🔊 Say it again!'}
             onSpeakName={
               queueActive
                 ? playback.replayCry
                 : selectedPokemon
-                  ? () => playTTS(selectedPokemon.name, selectedPokemon.id, true)
+                  ? () => playTTS(selectedPokemon.name, selectedPokemon.id)
                   : undefined
             }
             onClose={queueActive ? playback.stop : () => setComposite(null)}

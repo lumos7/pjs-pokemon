@@ -74,7 +74,12 @@ export async function fetchNameClipUrl(pokemonName: string): Promise<string | nu
 /** Speak the Pokémon's name; if a Pokémon id is given, chain its cry after. */
 export async function speakName(pokemonName: string, pokemonId?: number): Promise<void> {
   const url = await fetchNameClipUrl(pokemonName)
-  if (!url) return
+  if (!url) {
+    // TTS unavailable (bad/missing key, quota, offline). Never leave a tap
+    // silent — the cry stands in so the button always does something.
+    if (pokemonId) playCryClip(pokemonId, 0.33, pokemonName)
+    return
+  }
   const clip = playClip(url, 1)
   if (pokemonId) {
     const completed = await clip.done
